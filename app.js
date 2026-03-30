@@ -1,0 +1,1155 @@
+/* ===== Shikmim Research Dashboard v8 - app.js ===== */
+"use strict";
+
+/* ---------- globals ---------- */
+let DATA = null;
+let GROUPS = [];
+let selectedPolygon = null;
+let selectedSA = null;
+let avenueSpacing = {};
+let currentBase = null;
+let currentOverlay = null;
+let _polyStatsCache = {};
+let _saStatsCache = {};
+
+const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const hasStaticDataFile = !window.location.protocol.startsWith('file');
+
+const map = L.map('map', { zoomControl: true }).setView([31.67, 34.77], 11);
+const layers = {
+  polys: L.layerGroup().addTo(map),
+  trees: L.layerGroup().addTo(map),
+  lines: L.layerGroup().addTo(map),
+  labels: L.layerGroup().addTo(map),
+};
+
+/* ---------- tile definitions (all POM layers) ---------- */
+const baseDefs = {
+  osm:       () => L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }),
+  sat:       () => L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri' }),
+  'pal20k':     () => L.tileLayer('https://palopenmaps.org/tiles/pal20k-1940s/{z}/{x}/{y}.jpg', { minZoom: 2, maxZoom: 16, attribution: '&copy; Palestine Open Maps — 1:20k 1940s' }),
+  'pal-1940s':  () => L.tileLayer('https://palopenmaps.org/tiles/pal-1940s/{z}/{x}/{y}.jpg', { minZoom: 2, maxZoom: 16, attribution: '&copy; Palestine Open Maps — Combined 1940s' }),
+  'pal100k':    () => L.tileLayer('https://palopenmaps.org/tiles/pal100k-1950s/{z}/{x}/{y}.jpg', { minZoom: 2, maxZoom: 16, attribution: '&copy; Palestine Open Maps — 1:100k 1950s' }),
+  'pal250k':    () => L.tileLayer('https://palopenmaps.org/tiles/pal250k-1946/{z}/{x}/{y}.jpg', { minZoom: 2, maxZoom: 16, attribution: '&copy; Palestine Open Maps — 1:250k 1946' }),
+  'pal63k':     () => L.tileLayer('https://palopenmaps.org/tiles/pal63k-1880/{z}/{x}/{y}@2x.jpg', { minZoom: 2, maxZoom: 16, attribution: '&copy; Palestine Open Maps — PEF 1:63k 1880s' }),
+  'isr250k':    () => L.tileLayer('https://palopenmaps.org/tiles/isr250k-1951/{z}/{x}/{y}@2x.jpg', { minZoom: 2, maxZoom: 16, attribution: '&copy; Palestine Open Maps — Israel 1:250k 1951' }),
+};
+
+/* ---------- utilities ---------- */
+function mean(arr) { const a = arr.filter(v => v != null && !isNaN(v)); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : null; }
+function median(arr) { const a = arr.filter(v => v != null && !isNaN(v)).sort((x, y) => x - y); if (!a.length) return null; const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
+function stddev(arr) { const m = mean(arr); if (m == null) return null; const a = arr.filter(v => v != null && !isNaN(v)); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / a.length); }
+function arrMin(arr) { const a = arr.filter(v => v != null && !isNaN(v)); return a.length ? Math.min(...a) : null; }
+function arrMax(arr) { const a = arr.filter(v => v != null && !isNaN(v)); return a.length ? Math.max(...a) : null; }
+function fmt(v, d = 1) { return v != null ? Number(v).toFixed(d) : '-'; }
+function fmtInt(v) { return v != null ? Math.round(v).toLocaleString('he-IL') : '-'; }
+const pltCfg = { responsive: true, displayModeBar: false };
+const pltLay = (title, extra) => Object.assign({ title, font: { family: 'Segoe UI, Arial', size: 12 }, margin: { t: 40, b: 40, l: 50, r: 20 } }, extra || {});
+
+/* ---------- data loading ---------- */
+async function loadData() {
+  try {
+    const resp = await fetch('data.json');
+    if (!resp.ok) throw new Error('לא ניתן לטעון את data.json');
+    DATA = await resp.json();
+    buildSuperAreas();
+    init();
+    document.getElementById('statusText').textContent = `${DATA.points.length} עצים | ${DATA.polygons.length} פוליגונים | ${DATA.lines.length} שדרות`;
+  } catch (e) {
+    document.getElementById('statusText').textContent = 'שגיאה בטעינה: ' + e.message;
+    console.error(e);
+  }
+}
+
+/* ---------- super-area computation ---------- */
+function buildSuperAreas() {
+  const saMap = {};
+  DATA.polygons.forEach(p => {
+    const code = p.space_code || '?';
+    if (!saMap[code]) saMap[code] = { code, name_he: p.space_name_he, name_en: p.space_name, polygons: [] };
+    saMap[code].polygons.push(p.polygon);
+  });
+  DATA.superAreas = Object.values(saMap);
+}
+
+function computeSAStats(sa) {
+  if (_saStatsCache[sa.code]) return _saStatsCache[sa.code];
+  const polyCodes = new Set(sa.polygons);
+  const pts = DATA.points.filter(t => polyCodes.has(t.polygon));
+  const lns = DATA.lines.filter(l => polyCodes.has(l.polygon));
+  const polyObjs = DATA.polygons.filter(p => polyCodes.has(p.polygon));
+  const girths = pts.map(t => t.girth).filter(v => v != null && !isNaN(v));
+  const heights = pts.map(t => t.height).filter(v => v != null && !isNaN(v));
+  const defSp = parseFloat(document.getElementById('defaultSpacing').value) || 8;
+  const avenueTrees = lns.reduce((s, l) => {
+    const sp = avenueSpacing[l.id] || defSp;
+    return s + ((l.length && sp > 0) ? Math.round(l.length / sp) : 0);
+  }, 0);
+  const result = {
+    code: sa.code,
+    name_he: sa.name_he,
+    name_en: sa.name_en,
+    polygons: sa.polygons,
+    treeCount: pts.length,
+    avenueCount: lns.length,
+    avenueTrees,
+    totalTrees: pts.length + avenueTrees,
+    totalArea: polyObjs.reduce((s, p) => s + (p.area_acres || 0), 0),
+    avgGirth: mean(girths),
+    medianGirth: median(girths),
+    stdGirth: stddev(girths),
+    minGirth: arrMin(girths),
+    maxGirth: arrMax(girths),
+    avgHeight: mean(heights),
+    medianHeight: median(heights),
+    stdHeight: stddev(heights),
+    minHeight: arrMin(heights),
+    maxHeight: arrMax(heights),
+    density: polyObjs.reduce((s, p) => s + (p.area_acres || 0), 0) > 0
+      ? pts.length / polyObjs.reduce((s, p) => s + (p.area_acres || 0), 0) : 0,
+    spaceTypes: [...new Set(polyObjs.map(p => p.space_type).filter(Boolean))],
+  };
+  _saStatsCache[sa.code] = result;
+  return result;
+}
+
+/* ---------- polygon stats (includes avenue trees) ---------- */
+function computePolyStats(polyCode) {
+  if (_polyStatsCache[polyCode]) return _polyStatsCache[polyCode];
+  const pts = DATA.points.filter(t => t.polygon === polyCode);
+  const lns = DATA.lines.filter(l => l.polygon === polyCode);
+  const pObj = DATA.polygons.find(p => p.polygon === polyCode);
+  const girths = pts.map(t => t.girth).filter(v => v != null && !isNaN(v));
+  const heights = pts.map(t => t.height).filter(v => v != null && !isNaN(v));
+  const defSp = parseFloat(document.getElementById('defaultSpacing').value) || 8;
+  const avenueTrees = lns.reduce((s, l) => {
+    const sp = avenueSpacing[l.id] || defSp;
+    return s + ((l.length && sp > 0) ? Math.round(l.length / sp) : 0);
+  }, 0);
+  const result = {
+    polygon: polyCode,
+    name_he: pObj?.space_name_he || '',
+    name_en: pObj?.space_name || '',
+    space_type: pObj?.space_type || '',
+    space_code: pObj?.space_code || '',
+    area: pObj?.area_acres || 0,
+    treeCount: pts.length,
+    avenueCount: lns.length,
+    avenueTrees,
+    totalTrees: pts.length + avenueTrees,
+    avgGirth: mean(girths), medianGirth: median(girths), stdGirth: stddev(girths),
+    minGirth: arrMin(girths), maxGirth: arrMax(girths),
+    avgHeight: mean(heights), medianHeight: median(heights), stdHeight: stddev(heights),
+    minHeight: arrMin(heights), maxHeight: arrMax(heights),
+    density: (pObj?.area_acres > 0) ? pts.length / pObj.area_acres : 0,
+    totalLineLength: lns.reduce((s, l) => s + (l.length || 0), 0),
+  };
+  _polyStatsCache[polyCode] = result;
+  return result;
+}
+
+/* ---------- filtering ---------- */
+function filteredPolygons() {
+  const q = document.getElementById('searchPoly').value.trim().toLowerCase();
+  if (!q) return DATA.polygons;
+  return DATA.polygons.filter(p => (`${p.polygon} ${p.space_name_he || ''} ${p.space_name || ''} ${p.space_code || ''}`).toLowerCase().includes(q));
+}
+function filteredPoints(polys) {
+  const set = new Set(polys.map(p => p.polygon));
+  return DATA.points.filter(t => !t.polygon || set.has(t.polygon));
+}
+function filteredLines(polys) {
+  const set = new Set(polys.map(p => p.polygon));
+  return DATA.lines.filter(l => !l.polygon || set.has(l.polygon));
+}
+
+/* ---------- map ---------- */
+function setBase(mode) {
+  if (currentBase) map.removeLayer(currentBase);
+  if (currentOverlay) map.removeLayer(currentOverlay);
+  currentOverlay = null;
+  if (mode.includes('+')) {
+    const [base, overlay] = mode.split('+');
+    currentBase = baseDefs[base]().addTo(map);
+    currentOverlay = baseDefs[overlay]();
+    currentOverlay.options.opacity = 0.6;
+    currentOverlay.addTo(map);
+  } else {
+    currentBase = baseDefs[mode]().addTo(map);
+  }
+}
+
+function getPolygonStyle(code) {
+  const sel = selectedPolygon === code;
+  const saSel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(code);
+  return {
+    color: sel ? '#1d4ed8' : (saSel ? '#7c3aed' : '#2563eb'),
+    weight: sel ? 4 : (saSel ? 3 : 2),
+    fillColor: sel ? '#3b82f6' : (saSel ? '#a78bfa' : '#60a5fa'),
+    fillOpacity: sel ? 0.32 : (saSel ? 0.24 : 0.14),
+  };
+}
+
+/* Sort vertices by angle around their centroid → proper convex polygon */
+function orderVertices(latlons) {
+  if (latlons.length <= 2) return latlons;
+  const cLat = latlons.reduce((s, p) => s + p[0], 0) / latlons.length;
+  const cLon = latlons.reduce((s, p) => s + p[1], 0) / latlons.length;
+  return latlons.slice().sort((a, b) =>
+    Math.atan2(a[0] - cLat, a[1] - cLon) - Math.atan2(b[0] - cLat, b[1] - cLon)
+  );
+}
+
+function drawMap() {
+  Object.values(layers).forEach(g => g.clearLayers());
+  const polys = filteredPolygons();
+  const pts = filteredPoints(polys);
+  const lns = filteredLines(polys);
+  const showPolys = document.getElementById('chkPolys').checked;
+  const showTrees = document.getElementById('chkTrees').checked;
+  const showLines = document.getElementById('chkLines').checked;
+  const showLabels = document.getElementById('chkLabels').checked;
+
+  if (showPolys) polys.forEach(p => {
+    const ordered = orderVertices(p.latlons);
+    const poly = L.polygon(ordered, getPolygonStyle(p.polygon)).addTo(layers.polys);
+    const st = computePolyStats(p.polygon);
+    poly.bindPopup(`<b>${p.polygon} - ${p.space_name_he || ''}</b><br>${p.space_type || ''}<br>עצים: ${st.totalTrees} (${st.avenueTrees} משדרות)<br>ממוצע היקף: ${fmt(st.avgGirth)}<br>שטח: ${fmt(st.area)} acres`);
+    poly.on('click', () => { selectedPolygon = p.polygon; selectedSA = null; updateAll(); });
+    if (showLabels) {
+      const lat = p.latlons.reduce((a, b) => a + b[0], 0) / p.latlons.length;
+      const lon = p.latlons.reduce((a, b) => a + b[1], 0) / p.latlons.length;
+      L.marker([lat, lon], { interactive: false, opacity: 0 })
+        .bindTooltip(p.polygon, { permanent: true, direction: 'center', className: 'polylabel' })
+        .addTo(layers.labels);
+    }
+  });
+
+  if (showTrees) pts.forEach(t => {
+    const isSel = selectedPolygon && t.polygon === selectedPolygon;
+    const isSASel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(t.polygon);
+    const clr = isSel ? '#14532d' : (isSASel ? '#7c3aed' : '#16a34a');
+    L.circleMarker(t.latlon, { radius: 3.5, color: clr, fillColor: clr, fillOpacity: 0.9, weight: 1 })
+      .bindPopup(`עץ #${t.id}<br>פוליגון: ${t.polygon || 'ללא'}<br>היקף: ${t.girth ?? ''}<br>גובה: ${t.height ?? ''}`)
+      .addTo(layers.trees);
+  });
+
+  if (showLines) lns.forEach(l => {
+    L.polyline([l.latlon1, l.latlon2], { color: '#dc2626', weight: 3, dashArray: '8,5' })
+      .bindPopup(`שדרה #${l.id}<br>פוליגון: ${l.polygon || 'ללא'}<br>סוג: ${l.type || ''}<br>אורך: ${fmt(l.length)}`)
+      .addTo(layers.lines);
+  });
+
+  document.getElementById('statusText').textContent = `${pts.length} עצים | ${polys.length} פוליגונים | ${lns.length} שדרות`;
+}
+
+function fitToData() {
+  const polys = filteredPolygons();
+  const all = [];
+  polys.forEach(p => p.latlons.forEach(ll => all.push(ll)));
+  if (all.length) map.fitBounds(all, { padding: [20, 20] });
+}
+
+function fitToPolygon(code) {
+  const p = DATA.polygons.find(x => x.polygon === code);
+  if (p && p.latlons.length) map.fitBounds(p.latlons, { padding: [40, 40], maxZoom: 16 });
+}
+
+function fitToSA(saCode) {
+  const sa = DATA.superAreas.find(s => s.code === saCode);
+  if (!sa) return;
+  const all = [];
+  sa.polygons.forEach(code => {
+    const p = DATA.polygons.find(x => x.polygon === code);
+    if (p) p.latlons.forEach(ll => all.push(ll));
+  });
+  if (all.length) map.fitBounds(all, { padding: [30, 30] });
+}
+
+/* ---------- KPIs ---------- */
+function updateKPIs() {
+  const polys = filteredPolygons();
+  const activePoly = selectedPolygon ? [selectedPolygon] : (selectedSA ? DATA.superAreas.find(s => s.code === selectedSA)?.polygons || [] : []);
+  const pts = activePoly.length
+    ? DATA.points.filter(t => activePoly.includes(t.polygon))
+    : filteredPoints(polys);
+  const lns = activePoly.length
+    ? DATA.lines.filter(l => activePoly.includes(l.polygon))
+    : filteredLines(polys);
+  const activePolyObjs = activePoly.length
+    ? DATA.polygons.filter(p => activePoly.includes(p.polygon))
+    : polys;
+
+  const defSp = parseFloat(document.getElementById('defaultSpacing').value) || 8;
+  const avenueTrees = lns.reduce((s, l) => {
+    const sp = avenueSpacing[l.id] || defSp;
+    return s + ((l.length && sp > 0) ? Math.round(l.length / sp) : 0);
+  }, 0);
+
+  document.getElementById('kTrees').textContent = fmtInt(pts.length + avenueTrees);
+  document.getElementById('kPolys').textContent = fmtInt(activePolyObjs.length);
+  document.getElementById('kLines').textContent = fmtInt(lns.length);
+  document.getElementById('kAvgG').textContent = fmt(mean(pts.map(t => t.girth)));
+  document.getElementById('kAvgH').textContent = fmt(mean(pts.map(t => t.height)));
+  document.getElementById('kArea').textContent = fmt(activePolyObjs.reduce((s, p) => s + (p.area_acres || 0), 0));
+  document.getElementById('kMedG').textContent = fmt(median(pts.map(t => t.girth)));
+  document.getElementById('kSA').textContent = fmtInt(DATA.superAreas.length);
+  const totalArea = activePolyObjs.reduce((s, p) => s + (p.area_acres || 0), 0);
+  document.getElementById('kDens').textContent = totalArea > 0 ? fmt(pts.length / totalArea, 2) : '-';
+
+  updateSelectionDetail();
+}
+
+/* ---------- selection detail card ---------- */
+function updateSelectionDetail() {
+  const el = document.getElementById('selectionDetail');
+  if (selectedPolygon) {
+    const st = computePolyStats(selectedPolygon);
+    el.innerHTML = `
+      <div class="card">
+        <div class="detail-header"><span class="poly-code">${st.polygon}</span><span class="poly-name">${st.name_he} (${st.name_en})</span></div>
+        <div class="detail-grid">
+          <div class="card"><h5>נתוני עצים</h5>
+            <div class="stat-row"><span class="stat-label">עצים במיפוי</span><span class="stat-value">${st.treeCount}</span></div>
+            <div class="stat-row"><span class="stat-label">עצי שדרה (אומדן)</span><span class="stat-value">${st.avenueTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">סה"כ עצים</span><span class="stat-value">${st.totalTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">שדרות</span><span class="stat-value">${st.avenueCount}</span></div>
+          </div>
+          <div class="card"><h5>היקף (Girth)</h5>
+            <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">סטיית תקן</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">מינימום</span><span class="stat-value">${fmt(st.minGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">מקסימום</span><span class="stat-value">${fmt(st.maxGirth)}</span></div>
+          </div>
+          <div class="card"><h5>גובה (Height)</h5>
+            <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">סטיית תקן</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">מינימום</span><span class="stat-value">${fmt(st.minHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">מקסימום</span><span class="stat-value">${fmt(st.maxHeight)}</span></div>
+          </div>
+          <div class="card"><h5>שטח</h5>
+            <div class="stat-row"><span class="stat-label">שטח (acres)</span><span class="stat-value">${fmt(st.area)}</span></div>
+            <div class="stat-row"><span class="stat-label">סוג</span><span class="stat-value">${st.space_type}</span></div>
+            <div class="stat-row"><span class="stat-label">אזור-על</span><span class="stat-value">${st.space_code}</span></div>
+            <div class="stat-row"><span class="stat-label">צפיפות</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
+            <div class="stat-row"><span class="stat-label">אורך שדרות</span><span class="stat-value">${fmt(st.totalLineLength)}</span></div>
+          </div>
+        </div>
+      </div>`;
+  } else if (selectedSA) {
+    const sa = DATA.superAreas.find(s => s.code === selectedSA);
+    const st = computeSAStats(sa);
+    el.innerHTML = `
+      <div class="card">
+        <div class="detail-header"><span class="poly-code">${st.code}</span><span class="poly-name">אזור-על: ${st.name_he}</span></div>
+        <div class="small">פוליגונים: ${st.polygons.join(', ')}</div>
+        <div class="detail-grid">
+          <div class="card"><h5>נתוני עצים</h5>
+            <div class="stat-row"><span class="stat-label">עצים במיפוי</span><span class="stat-value">${st.treeCount}</span></div>
+            <div class="stat-row"><span class="stat-label">עצי שדרה</span><span class="stat-value">${st.avenueTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">סה"כ</span><span class="stat-value">${st.totalTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">שדרות</span><span class="stat-value">${st.avenueCount}</span></div>
+          </div>
+          <div class="card"><h5>היקף</h5>
+            <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">סטיית תקן</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">מינ/מקס</span><span class="stat-value">${fmt(st.minGirth)} – ${fmt(st.maxGirth)}</span></div>
+          </div>
+          <div class="card"><h5>גובה</h5>
+            <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">סטיית תקן</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">מינ/מקס</span><span class="stat-value">${fmt(st.minHeight)} – ${fmt(st.maxHeight)}</span></div>
+          </div>
+          <div class="card"><h5>שטח</h5>
+            <div class="stat-row"><span class="stat-label">שטח כולל</span><span class="stat-value">${fmt(st.totalArea)} acres</span></div>
+            <div class="stat-row"><span class="stat-label">צפיפות</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
+            <div class="stat-row"><span class="stat-label">סוגי שטח</span><span class="stat-value">${st.spaceTypes.join(', ')}</span></div>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    el.innerHTML = '<div class="card small">לחצו על פוליגון במפה או ברשימה כדי לראות נתונים מפורטים</div>';
+  }
+}
+
+/* ---------- polygon list tab ---------- */
+function renderPolyList() {
+  const container = document.getElementById('polyList');
+  container.innerHTML = DATA.polygons.map(p => {
+    const st = computePolyStats(p.polygon);
+    return `<div class="poly-item ${selectedPolygon === p.polygon ? 'selected' : ''}" data-poly="${p.polygon}">
+      <span class="code">${p.polygon}</span>
+      <span class="info"><span class="name">${p.space_name_he || p.space_name || ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | צפיפות: ${fmt(st.density, 3)}</span>
+      <span class="trees-badge">${st.totalTrees} עצים</span>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('.poly-item').forEach(el => {
+    el.addEventListener('click', () => {
+      selectedPolygon = el.dataset.poly;
+      selectedSA = null;
+      fitToPolygon(selectedPolygon);
+      updateAll();
+    });
+  });
+}
+
+/* ---------- super-area list tab ---------- */
+function renderSAList() {
+  const container = document.getElementById('saList');
+  container.innerHTML = DATA.superAreas.map(sa => {
+    const st = computeSAStats(sa);
+    return `<div class="sa-card ${selectedSA === sa.code ? 'selected' : ''}" data-sa="${sa.code}">
+      <h5>${sa.code} — ${sa.name_he || sa.name_en || ''}</h5>
+      <div class="sa-polys">פוליגונים: ${sa.polygons.join(', ')}</div>
+      <div class="sa-stats">
+        <div class="sa-stat"><div class="sv">${st.totalTrees}</div>עצים</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.totalArea)}</div>acres</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.avgGirth)}</div>ממוצע היקף</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.medianGirth)}</div>חציון היקף</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.avgHeight)}</div>ממוצע גובה</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.density, 3)}</div>צפיפות</div>
+      </div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('.sa-card').forEach(el => {
+    el.addEventListener('click', () => {
+      selectedSA = el.dataset.sa;
+      selectedPolygon = null;
+      fitToSA(selectedSA);
+      updateAll();
+    });
+  });
+}
+
+function renderSADetail() {
+  const el = document.getElementById('saDetail');
+  if (!selectedSA) { el.innerHTML = ''; return; }
+  const sa = DATA.superAreas.find(s => s.code === selectedSA);
+  const st = computeSAStats(sa);
+  el.innerHTML = `<div class="card">
+    <h5>${st.code} — ${st.name_he} — נתונים מלאים</h5>
+    <div class="detail-grid">
+      <div class="card"><h5>עצים</h5>
+        <div class="stat-row"><span class="stat-label">במיפוי</span><span class="stat-value">${st.treeCount}</span></div>
+        <div class="stat-row"><span class="stat-label">שדרות</span><span class="stat-value">${st.avenueTrees}</span></div>
+        <div class="stat-row"><span class="stat-label">סה"כ</span><span class="stat-value">${st.totalTrees}</span></div>
+      </div>
+      <div class="card"><h5>היקף</h5>
+        <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
+        <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
+        <div class="stat-row"><span class="stat-label">σ</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
+        <div class="stat-row"><span class="stat-label">טווח</span><span class="stat-value">${fmt(st.minGirth)} – ${fmt(st.maxGirth)}</span></div>
+      </div>
+      <div class="card"><h5>גובה</h5>
+        <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
+        <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
+        <div class="stat-row"><span class="stat-label">σ</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
+        <div class="stat-row"><span class="stat-label">טווח</span><span class="stat-value">${fmt(st.minHeight)} – ${fmt(st.maxHeight)}</span></div>
+      </div>
+      <div class="card"><h5>שטח ומרחב</h5>
+        <div class="stat-row"><span class="stat-label">שטח</span><span class="stat-value">${fmt(st.totalArea)} ac</span></div>
+        <div class="stat-row"><span class="stat-label">צפיפות</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
+        <div class="stat-row"><span class="stat-label">סוגים</span><span class="stat-value">${st.spaceTypes.join(', ')}</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function updateSACharts() {
+  const stats = DATA.superAreas.map(computeSAStats);
+  // Comparison bar chart
+  Plotly.newPlot('chartSACompare', [
+    { x: stats.map(s => s.code), y: stats.map(s => s.totalTrees), type: 'bar', name: 'עצים', marker: { color: '#16a34a' } },
+    { x: stats.map(s => s.code), y: stats.map(s => s.avgGirth), type: 'bar', name: 'ממוצע היקף', yaxis: 'y2', marker: { color: '#f59e0b' } },
+  ], Object.assign(pltLay('השוואת אזורי-על'), {
+    barmode: 'group',
+    yaxis: { title: 'כמות עצים' },
+    yaxis2: { title: 'ממוצע היקף', overlaying: 'y', side: 'left', position: 0 },
+  }), pltCfg);
+
+  // Radar chart (polar bar)
+  const categories = ['עצים (÷10)', 'שטח (÷100)', 'ממוצע היקף', 'חציון היקף', 'ממוצע גובה', 'צפיפות×100'];
+  const radarTraces = stats.map(s => ({
+    type: 'scatterpolar',
+    r: [s.totalTrees / 10, s.totalArea / 100, s.avgGirth || 0, s.medianGirth || 0, (s.avgHeight || 0) / 10, s.density * 100],
+    theta: categories,
+    fill: 'toself',
+    name: s.code,
+  }));
+  Plotly.newPlot('chartSARadar', radarTraces, pltLay('פרופיל אזורי-על (Radar)'), pltCfg);
+}
+
+/* ---------- overview charts ---------- */
+function updateOverviewCharts() {
+  // Bar chart: trees per polygon with avenue trees stacked
+  const codes = DATA.polygons.map(p => p.polygon);
+  const stats = codes.map(computePolyStats);
+  Plotly.newPlot('chartOverviewBar', [
+    { x: codes, y: stats.map(s => s.treeCount), type: 'bar', name: 'עצים במיפוי', marker: { color: '#16a34a' } },
+    { x: codes, y: stats.map(s => s.avenueTrees), type: 'bar', name: 'עצי שדרה', marker: { color: '#f59e0b' } },
+  ], Object.assign(pltLay('עצים לפי פוליגון (כולל אומדן שדרות)'), { barmode: 'stack' }), pltCfg);
+
+  // Pie chart: space types
+  const typeCounts = {};
+  DATA.polygons.forEach(p => { const t = p.space_type || 'אחר'; typeCounts[t] = (typeCounts[t] || 0) + 1; });
+  Plotly.newPlot('chartOverviewPie', [{
+    labels: Object.keys(typeCounts), values: Object.values(typeCounts),
+    type: 'pie', hole: 0.4, textinfo: 'label+percent',
+  }], pltLay('סוגי שטחים'), pltCfg);
+}
+
+/* ---------- analytics charts ---------- */
+function updateCharts() {
+  const polys = filteredPolygons();
+  const polySet = new Set(polys.map(p => p.polygon));
+  const activePoly = selectedPolygon ? [selectedPolygon] : (selectedSA ? DATA.superAreas.find(s => s.code === selectedSA)?.polygons || [] : []);
+  const pts = activePoly.length
+    ? DATA.points.filter(t => activePoly.includes(t.polygon))
+    : filteredPoints(polys);
+
+  // Scatter: girth vs height
+  const colors = ['#16a34a', '#2563eb', '#dc2626', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6', '#6366f1', '#e11d48', '#a3e635', '#0891b2', '#d946ef'];
+  const polyGroups = {};
+  pts.forEach(t => {
+    const k = t.polygon || 'ללא';
+    if (!polyGroups[k]) polyGroups[k] = { girth: [], height: [] };
+    polyGroups[k].girth.push(t.girth);
+    polyGroups[k].height.push(t.height);
+  });
+  const scatterTraces = Object.entries(polyGroups).map(([k, v], i) => ({
+    x: v.girth, y: v.height, mode: 'markers', type: 'scatter', name: k,
+    marker: { color: colors[i % colors.length], size: 7, opacity: 0.7 },
+    hovertemplate: `פוליגון: ${k}<br>היקף: %{x}<br>גובה: %{y}<extra></extra>`,
+  }));
+  Plotly.newPlot('chartScatter', scatterTraces, pltLay('פיזור היקף מול גובה (לפי פוליגון)', { xaxis: { title: 'היקף' }, yaxis: { title: 'גובה' } }), pltCfg);
+
+  // Bar: tree count per polygon
+  const counts = {};
+  pts.forEach(t => { const k = t.polygon || 'ללא'; counts[k] = (counts[k] || 0) + 1; });
+  Plotly.newPlot('chartBars', [{ x: Object.keys(counts), y: Object.values(counts), type: 'bar', marker: { color: '#2563eb' } }], pltLay('כמות עצים לפי פוליגון'), pltCfg);
+
+  // Histogram: girth
+  Plotly.newPlot('chartHist', [{ x: pts.map(t => t.girth).filter(v => v != null), type: 'histogram', marker: { color: '#0ea5e9' }, nbinsx: 30 }], pltLay('התפלגות היקפים'), pltCfg);
+
+  // Box plot by polygon
+  const boxTraces = Array.from(polySet).map((code, i) => {
+    const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null);
+    return { y: arr, type: 'box', name: code, boxpoints: false, marker: { color: colors[i % colors.length] } };
+  });
+  Plotly.newPlot('chartBox', boxTraces, pltLay('Box plot היקפים לפי פוליגון'), pltCfg);
+
+  // Histogram: heights
+  Plotly.newPlot('chartHeights', [{ x: pts.map(t => t.height).filter(v => v != null), type: 'histogram', marker: { color: '#8b5cf6' }, nbinsx: 25 }], pltLay('התפלגות גבהים'), pltCfg);
+
+  // Density by polygon
+  const densX = polys.map(p => p.polygon);
+  const densY = densX.map(code => {
+    const st = computePolyStats(code);
+    return st.density;
+  });
+  Plotly.newPlot('chartDensity', [{ x: densX, y: densY, type: 'bar', marker: { color: '#f59e0b' } }], pltLay('צפיפות שקמים בפוליגון (כולל שדרות)'), pltCfg);
+
+  // Heatmap
+  const heatRows = DATA.distribution;
+  const xs = polys.map(p => p.polygon);
+  const ys = heatRows.map(r => r.girth_range);
+  const z = ys.map(y => xs.map(x => heatRows.find(r => r.girth_range === y)?.[x] || 0));
+  Plotly.newPlot('chartHeat', [{ x: xs, y: ys, z: z, type: 'heatmap', colorscale: 'YlGnBu' }], pltLay('Heatmap התפלגות היקפים × פוליגון'), pltCfg);
+
+  // Violin plot
+  const violinTraces = Array.from(polySet).map((code, i) => {
+    const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null);
+    return { y: arr, type: 'violin', name: code, box: { visible: true }, meanline: { visible: true }, marker: { color: colors[i % colors.length] } };
+  });
+  Plotly.newPlot('chartViolin', violinTraces, pltLay('Violin plot היקפים לפי פוליגון'), pltCfg);
+}
+
+/* ---------- advanced analytics ---------- */
+function updateAdvancedCharts() {
+  const polys = filteredPolygons();
+  const activePoly = selectedPolygon ? [selectedPolygon] : (selectedSA ? DATA.superAreas.find(s => s.code === selectedSA)?.polygons || [] : []);
+  const pts = activePoly.length
+    ? DATA.points.filter(t => activePoly.includes(t.polygon))
+    : filteredPoints(polys);
+  const polyStats = DATA.polygons.map(p => computePolyStats(p.polygon));
+
+  // Treemap: area proportional
+  const treemapLabels = ['כל השטחים'];
+  const treemapParents = [''];
+  const treemapValues = [0];
+  const treemapText = [''];
+  DATA.superAreas.forEach(sa => {
+    treemapLabels.push(sa.code);
+    treemapParents.push('כל השטחים');
+    treemapValues.push(0);
+    treemapText.push(`${sa.name_he || ''}`);
+    sa.polygons.forEach(code => {
+      const p = DATA.polygons.find(x => x.polygon === code);
+      treemapLabels.push(code);
+      treemapParents.push(sa.code);
+      treemapValues.push(p?.area_acres || 1);
+      const st = computePolyStats(code);
+      treemapText.push(`${p?.space_name_he || ''}<br>${st.totalTrees} עצים`);
+    });
+  });
+  Plotly.newPlot('chartTreemap', [{
+    type: 'treemap', labels: treemapLabels, parents: treemapParents, values: treemapValues,
+    text: treemapText, textinfo: 'label+text', hovertemplate: '%{label}<br>%{text}<br>שטח: %{value:.1f} acres<extra></extra>',
+    marker: { colorscale: 'Viridis' },
+  }], pltLay('Treemap — שטחים לפי אזור-על ופוליגון'), pltCfg);
+
+  // CDF of girth
+  const girths = pts.map(t => t.girth).filter(v => v != null).sort((a, b) => a - b);
+  const cdfY = girths.map((_, i) => (i + 1) / girths.length);
+  Plotly.newPlot('chartCDF', [{
+    x: girths, y: cdfY, type: 'scatter', mode: 'lines',
+    line: { color: '#2563eb', width: 2 }, name: 'CDF',
+  }], pltLay('CDF — פונקציית ההתפלגות המצטברת של היקפים', { xaxis: { title: 'היקף' }, yaxis: { title: 'הסתברות מצטברת' } }), pltCfg);
+
+  // Size class stacked bars
+  const sizeClasses = [
+    { label: '0-100', min: 0, max: 100 },
+    { label: '100-200', min: 100, max: 200 },
+    { label: '200-300', min: 200, max: 300 },
+    { label: '300-500', min: 300, max: 500 },
+    { label: '500+', min: 500, max: Infinity },
+  ];
+  const codes = polys.map(p => p.polygon);
+  const sizeTraces = sizeClasses.map(sc => ({
+    x: codes,
+    y: codes.map(code => DATA.points.filter(t => t.polygon === code && t.girth != null && t.girth >= sc.min && t.girth < sc.max).length),
+    type: 'bar', name: sc.label,
+  }));
+  Plotly.newPlot('chartSizeClass', sizeTraces, Object.assign(pltLay('מחלקות גודל (היקף) לפי פוליגון'), { barmode: 'stack' }), pltCfg);
+
+  // Lorenz curve (girth concentration)
+  if (girths.length > 1) {
+    const total = girths.reduce((s, v) => s + v, 0);
+    const lorenzX = [0];
+    const lorenzY = [0];
+    let cumul = 0;
+    girths.forEach((v, i) => {
+      cumul += v;
+      lorenzX.push((i + 1) / girths.length);
+      lorenzY.push(cumul / total);
+    });
+    // Gini coefficient
+    const gini = 1 - 2 * lorenzY.reduce((s, v, i) => i === 0 ? s : s + (lorenzX[i] - lorenzX[i - 1]) * (lorenzY[i] + lorenzY[i - 1]) / 2, 0);
+    Plotly.newPlot('chartLorenz', [
+      { x: lorenzX, y: lorenzY, type: 'scatter', mode: 'lines', name: 'Lorenz', line: { color: '#dc2626', width: 2 } },
+      { x: [0, 1], y: [0, 1], type: 'scatter', mode: 'lines', name: 'שוויון מלא', line: { color: '#94a3b8', dash: 'dash' } },
+    ], pltLay(`Lorenz Curve — ריכוז היקפים (Gini = ${gini.toFixed(3)})`, { xaxis: { title: 'חלק מצטבר של אוכלוסיית העצים' }, yaxis: { title: 'חלק מצטבר של סך ההיקפים' } }), pltCfg);
+  }
+
+  // Space type pie
+  const typeTrees = {};
+  DATA.polygons.forEach(p => {
+    const t = p.space_type || 'אחר';
+    const st = computePolyStats(p.polygon);
+    typeTrees[t] = (typeTrees[t] || 0) + st.totalTrees;
+  });
+  Plotly.newPlot('chartSpaceType', [{
+    labels: Object.keys(typeTrees), values: Object.values(typeTrees),
+    type: 'pie', hole: 0.35, textinfo: 'label+percent+value',
+  }], pltLay('עצים לפי סוג שטח'), pltCfg);
+
+  // Correlation scatter: avg girth vs density per polygon
+  Plotly.newPlot('chartCorrelation', [{
+    x: polyStats.map(s => s.avgGirth), y: polyStats.map(s => s.density),
+    text: polyStats.map(s => s.polygon), mode: 'markers+text', type: 'scatter',
+    marker: { size: polyStats.map(s => Math.sqrt(s.totalTrees) * 3), color: polyStats.map(s => s.area), colorscale: 'Viridis', showscale: true, colorbar: { title: 'שטח' } },
+    textposition: 'top center',
+    hovertemplate: 'פוליגון: %{text}<br>ממוצע היקף: %{x:.1f}<br>צפיפות: %{y:.3f}<extra></extra>',
+  }], pltLay('מתאם: ממוצע היקף מול צפיפות (גודל עיגול = שורש כמות עצים)', { xaxis: { title: 'ממוצע היקף' }, yaxis: { title: 'צפיפות (עצים/acre)' } }), pltCfg);
+
+  // Spatial density heatmap (tree locations)
+  Plotly.newPlot('chartSpatialDensity', [{
+    x: pts.map(t => t.latlon[1]), y: pts.map(t => t.latlon[0]),
+    type: 'histogram2d', colorscale: 'Hot', nbinsx: 40, nbinsy: 40, reversescale: true,
+  }], pltLay('מפת חום מרחבית — צפיפות עצים', { xaxis: { title: 'קו אורך' }, yaxis: { title: 'קו רוחב' } }), pltCfg);
+
+  // Girth vs Area bubble
+  Plotly.newPlot('chartGirthVsArea', [{
+    x: polyStats.map(s => s.area), y: polyStats.map(s => s.avgGirth),
+    text: polyStats.map(s => `${s.polygon} (${s.totalTrees})`),
+    mode: 'markers+text', type: 'scatter',
+    marker: { size: polyStats.map(s => Math.max(s.totalTrees / 5, 8)), color: '#059669', opacity: 0.7 },
+    textposition: 'top center',
+  }], pltLay('שטח מול ממוצע היקף', { xaxis: { title: 'שטח (acres)' }, yaxis: { title: 'ממוצע היקף' } }), pltCfg);
+
+  // Polygon profile: grouped bar - multiple metrics side by side
+  const profileCodes = polys.map(p => p.polygon);
+  Plotly.newPlot('chartPolygonProfile', [
+    { x: profileCodes, y: polyStats.map(s => s.avgGirth || 0), type: 'bar', name: 'ממוצע היקף', marker: { color: '#2563eb' } },
+    { x: profileCodes, y: polyStats.map(s => s.medianGirth || 0), type: 'bar', name: 'חציון היקף', marker: { color: '#06b6d4' } },
+    { x: profileCodes, y: polyStats.map(s => s.stdGirth || 0), type: 'bar', name: 'σ היקף', marker: { color: '#f59e0b' } },
+    { x: profileCodes, y: polyStats.map(s => (s.avgHeight || 0) / 10), type: 'bar', name: 'ממוצע גובה ÷10', marker: { color: '#8b5cf6' } },
+  ], Object.assign(pltLay('פרופיל פוליגונים — מדדים סטטיסטיים'), { barmode: 'group' }), pltCfg);
+}
+
+/* ---------- groups ---------- */
+function initGroupsUI() {
+  const sel = document.getElementById('groupPolys');
+  sel.innerHTML = '';
+  DATA.polygons.forEach(p => sel.add(new Option(`${p.polygon} - ${p.space_name_he || p.space_name || ''}`, p.polygon)));
+}
+
+function saveGroup() {
+  const name = document.getElementById('groupName').value.trim();
+  const polys = Array.from(document.getElementById('groupPolys').selectedOptions).map(o => o.value);
+  if (!name || !polys.length) return;
+  GROUPS.push({ name, polys });
+  renderGroups();
+  updateGroupsChart();
+}
+
+function groupSummary(group) {
+  const pts = DATA.points.filter(t => group.polys.includes(t.polygon));
+  const lns = DATA.lines.filter(l => group.polys.includes(l.polygon));
+  const defSp = parseFloat(document.getElementById('defaultSpacing').value) || 8;
+  const avenueTrees = lns.reduce((s, l) => {
+    const sp = avenueSpacing[l.id] || defSp;
+    return s + ((l.length && sp > 0) ? Math.round(l.length / sp) : 0);
+  }, 0);
+  const girths = pts.map(t => t.girth).filter(v => v != null);
+  const heights = pts.map(t => t.height).filter(v => v != null);
+  return {
+    name: group.name, polys: group.polys,
+    trees: pts.length, avenueTrees, totalTrees: pts.length + avenueTrees,
+    avenues: lns.length,
+    avgGirth: mean(girths), medianGirth: median(girths), stdGirth: stddev(girths),
+    minGirth: arrMin(girths), maxGirth: arrMax(girths),
+    avgHeight: mean(heights), medianHeight: median(heights), stdHeight: stddev(heights),
+    minHeight: arrMin(heights), maxHeight: arrMax(heights),
+    totalArea: group.polys.reduce((s, code) => s + ((DATA.polygons.find(p => p.polygon === code)?.area_acres) || 0), 0),
+    density: (() => {
+      const area = group.polys.reduce((s, code) => s + ((DATA.polygons.find(p => p.polygon === code)?.area_acres) || 0), 0);
+      return area > 0 ? (pts.length + avenueTrees) / area : 0;
+    })(),
+  };
+}
+
+function renderGroups() {
+  const out = document.getElementById('groupsOut');
+  out.innerHTML = GROUPS.map(g => {
+    const s = groupSummary(g);
+    return `<div class="card">
+      <h5>${s.name}</h5>
+      <div class="stat-row"><span class="stat-label">פוליגונים</span><span class="stat-value">${s.polys.join(', ')}</span></div>
+      <div class="stat-row"><span class="stat-label">עצים (מיפוי + שדרות)</span><span class="stat-value">${s.trees} + ${s.avenueTrees} = ${s.totalTrees}</span></div>
+      <div class="stat-row"><span class="stat-label">ממוצע היקף</span><span class="stat-value">${fmt(s.avgGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">חציון היקף</span><span class="stat-value">${fmt(s.medianGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">σ היקף</span><span class="stat-value">${fmt(s.stdGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">טווח היקף</span><span class="stat-value">${fmt(s.minGirth)} – ${fmt(s.maxGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">ממוצע גובה</span><span class="stat-value">${fmt(s.avgHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">חציון גובה</span><span class="stat-value">${fmt(s.medianHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">σ גובה</span><span class="stat-value">${fmt(s.stdHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">טווח גובה</span><span class="stat-value">${fmt(s.minHeight)} – ${fmt(s.maxHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">שטח</span><span class="stat-value">${fmt(s.totalArea)} acres</span></div>
+      <div class="stat-row"><span class="stat-label">צפיפות</span><span class="stat-value">${fmt(s.density, 3)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function updateGroupsChart() {
+  if (!GROUPS.length) { document.getElementById('chartGroups').innerHTML = ''; return; }
+  const sums = GROUPS.map(groupSummary);
+  Plotly.newPlot('chartGroups', [
+    { x: sums.map(s => s.name), y: sums.map(s => s.trees), type: 'bar', name: 'עצים במיפוי' },
+    { x: sums.map(s => s.name), y: sums.map(s => s.avenueTrees), type: 'bar', name: 'עצי שדרה' },
+  ], Object.assign(pltLay('השוואת קבוצות — עצים'), { barmode: 'stack' }), pltCfg);
+}
+
+/* ---------- avenues ---------- */
+function renderAvenues() {
+  const def = parseFloat(document.getElementById('defaultSpacing').value) || 8;
+  const rows = DATA.lines.map(l => {
+    const sp = avenueSpacing[l.id] || def;
+    const est = (l.length && sp > 0) ? Math.round(l.length / sp) : 0;
+    return `<tr>
+      <td>${l.id}</td><td>${l.polygon || ''}</td><td>${l.type || ''}</td>
+      <td>${fmt(l.length)}</td><td>${fmt(l.avg_girth)}</td><td>${fmt(l.avg_height)}</td>
+      <td><input type="number" step="0.5" value="${sp}" data-lineid="${l.id}" class="lineSpacing"></td>
+      <td><b>${est}</b></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('avenueTable').innerHTML = `<table class="avenue-table">
+    <thead><tr><th>#</th><th>פוליגון</th><th>סוג</th><th>אורך</th><th>ממוצע היקף</th><th>ממוצע גובה</th><th>מרווח</th><th>אומדן</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+  document.querySelectorAll('.lineSpacing').forEach(inp => {
+    inp.addEventListener('change', e => {
+      avenueSpacing[e.target.dataset.lineid] = parseFloat(e.target.value) || def;
+      renderAvenues();
+      updateAll();
+    });
+  });
+}
+
+/* ---------- CSV export ---------- */
+function exportCSV() {
+  const rows = [['Polygon', 'Name_HE', 'Name_EN', 'SpaceCode', 'SpaceType', 'Area_acres', 'Trees_Mapped', 'Trees_Avenue', 'Trees_Total', 'Avg_Girth', 'Median_Girth', 'Std_Girth', 'Min_Girth', 'Max_Girth', 'Avg_Height', 'Median_Height', 'Std_Height', 'Min_Height', 'Max_Height', 'Density']];
+  DATA.polygons.forEach(p => {
+    const s = computePolyStats(p.polygon);
+    rows.push([s.polygon, s.name_he, s.name_en, s.space_code, s.space_type, s.area, s.treeCount, s.avenueTrees, s.totalTrees, fmt(s.avgGirth), fmt(s.medianGirth), fmt(s.stdGirth), fmt(s.minGirth), fmt(s.maxGirth), fmt(s.avgHeight), fmt(s.medianHeight), fmt(s.stdHeight), fmt(s.minHeight), fmt(s.maxHeight), fmt(s.density, 4)]);
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'shikmim_data.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- comparison tab ---------- */
+function populateCmpSelect(typeSelId, valSelId) {
+  const type = document.getElementById(typeSelId).value;
+  const sel = document.getElementById(valSelId);
+  sel.innerHTML = '';
+  if (type === 'poly') {
+    DATA.polygons.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.polygon;
+      opt.textContent = `${p.polygon} – ${p.space_name_he || p.space_name || ''}`;
+      sel.appendChild(opt);
+    });
+  } else if (type === 'group') {
+    GROUPS.forEach((g, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = g.name;
+      sel.appendChild(opt);
+    });
+  } else if (type === 'sa') {
+    DATA.superAreas.forEach(sa => {
+      const opt = document.createElement('option');
+      opt.value = sa.code;
+      opt.textContent = `${sa.code} – ${sa.name_he || sa.name_en || ''}`;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function applyCmpFilters() {
+  const spaceType = document.getElementById('cmpFilterSpaceType').value;
+  const saCode = document.getElementById('cmpFilterSA').value;
+  ['A', 'B'].forEach(side => {
+    const typeSel = document.getElementById('cmpType' + side);
+    const valSel = document.getElementById('cmpSel' + side);
+    if (typeSel.value !== 'poly') return;
+    valSel.innerHTML = '';
+    DATA.polygons.forEach(p => {
+      if (spaceType && p.space_type !== spaceType) return;
+      if (saCode && p.space_code !== saCode) return;
+      const opt = document.createElement('option');
+      opt.value = p.polygon;
+      opt.textContent = `${p.polygon} – ${p.space_name_he || p.space_name || ''}`;
+      valSel.appendChild(opt);
+    });
+  });
+}
+
+function getUnitStats(type, key) {
+  if (type === 'poly') {
+    const s = computePolyStats(key);
+    return {
+      label: `${s.polygon} – ${s.name_he}`,
+      polyCodes: [key],
+      treeCount: s.treeCount, avenueTrees: s.avenueTrees, totalTrees: s.totalTrees,
+      avgGirth: s.avgGirth, medianGirth: s.medianGirth, stdGirth: s.stdGirth,
+      minGirth: s.minGirth, maxGirth: s.maxGirth,
+      avgHeight: s.avgHeight, medianHeight: s.medianHeight, stdHeight: s.stdHeight,
+      minHeight: s.minHeight, maxHeight: s.maxHeight,
+      area: s.area, density: s.density,
+      avenueCount: s.avenueCount, totalLineLength: s.totalLineLength,
+    };
+  } else if (type === 'group') {
+    const g = GROUPS[parseInt(key)];
+    if (!g) return null;
+    const s = groupSummary(g);
+    return {
+      label: s.name,
+      polyCodes: g.polys,
+      treeCount: s.trees, avenueTrees: s.avenueTrees, totalTrees: s.totalTrees,
+      avgGirth: s.avgGirth, medianGirth: s.medianGirth, stdGirth: s.stdGirth,
+      minGirth: s.minGirth, maxGirth: s.maxGirth,
+      avgHeight: s.avgHeight, medianHeight: s.medianHeight, stdHeight: s.stdHeight,
+      minHeight: s.minHeight, maxHeight: s.maxHeight,
+      area: s.totalArea, density: s.density,
+      avenueCount: s.avenues, totalLineLength: null,
+    };
+  } else if (type === 'sa') {
+    const sa = DATA.superAreas.find(s => s.code === key);
+    if (!sa) return null;
+    const s = computeSAStats(sa);
+    return {
+      label: `${s.code} – ${s.name_he}`,
+      polyCodes: sa.polygons,
+      treeCount: s.treeCount, avenueTrees: s.avenueTrees, totalTrees: s.totalTrees,
+      avgGirth: s.avgGirth, medianGirth: s.medianGirth, stdGirth: s.stdGirth,
+      minGirth: s.minGirth, maxGirth: s.maxGirth,
+      avgHeight: s.avgHeight, medianHeight: s.medianHeight, stdHeight: s.stdHeight,
+      minHeight: s.minHeight, maxHeight: s.maxHeight,
+      area: s.totalArea, density: s.density,
+      avenueCount: s.avenueCount, totalLineLength: null,
+    };
+  }
+  return null;
+}
+
+function getUnitPoints(polyCodes) {
+  const set = new Set(polyCodes);
+  return DATA.points.filter(t => set.has(t.polygon));
+}
+
+function runComparison() {
+  const typeA = document.getElementById('cmpTypeA').value;
+  const keyA = document.getElementById('cmpSelA').value;
+  const typeB = document.getElementById('cmpTypeB').value;
+  const keyB = document.getElementById('cmpSelB').value;
+  if (!keyA || !keyB) return;
+
+  const a = getUnitStats(typeA, keyA);
+  const b = getUnitStats(typeB, keyB);
+  if (!a || !b) return;
+
+  const ptsA = getUnitPoints(a.polyCodes);
+  const ptsB = getUnitPoints(b.polyCodes);
+  const girthsA = ptsA.map(t => t.girth).filter(v => v != null && !isNaN(v));
+  const girthsB = ptsB.map(t => t.girth).filter(v => v != null && !isNaN(v));
+  const heightsA = ptsA.map(t => t.height).filter(v => v != null && !isNaN(v));
+  const heightsB = ptsB.map(t => t.height).filter(v => v != null && !isNaN(v));
+
+  // Comparison metrics table
+  const metrics = [
+    { name: 'עצים (מיפוי)', a: a.treeCount, b: b.treeCount, higher: 'better' },
+    { name: 'עצי שדרה', a: a.avenueTrees, b: b.avenueTrees, higher: 'better' },
+    { name: 'סה"כ עצים', a: a.totalTrees, b: b.totalTrees, higher: 'better' },
+    { name: 'שטח (acres)', a: a.area, b: b.area, fmt: 2 },
+    { name: 'צפיפות (עצים/acre)', a: a.density, b: b.density, fmt: 3 },
+    { name: 'ממוצע היקף', a: a.avgGirth, b: b.avgGirth },
+    { name: 'חציון היקף', a: a.medianGirth, b: b.medianGirth },
+    { name: 'σ היקף', a: a.stdGirth, b: b.stdGirth },
+    { name: 'טווח היקף', a: a.minGirth != null && a.maxGirth != null ? `${fmt(a.minGirth)} – ${fmt(a.maxGirth)}` : '-',
+                          b: b.minGirth != null && b.maxGirth != null ? `${fmt(b.minGirth)} – ${fmt(b.maxGirth)}` : '-', noNum: true },
+    { name: 'ממוצע גובה', a: a.avgHeight, b: b.avgHeight },
+    { name: 'חציון גובה', a: a.medianHeight, b: b.medianHeight },
+    { name: 'σ גובה', a: a.stdHeight, b: b.stdHeight },
+    { name: 'טווח גובה', a: a.minHeight != null && a.maxHeight != null ? `${fmt(a.minHeight)} – ${fmt(a.maxHeight)}` : '-',
+                          b: b.minHeight != null && b.maxHeight != null ? `${fmt(b.minHeight)} – ${fmt(b.maxHeight)}` : '-', noNum: true },
+    { name: 'שדרות', a: a.avenueCount, b: b.avenueCount },
+  ];
+
+  let tableHtml = `<div class="cmp-summary">
+    <div class="cmp-summary-card side-a"><h5>${a.label}</h5><div class="big-num">${a.totalTrees}</div><div class="small">עצים כולל שדרות</div></div>
+    <div class="cmp-summary-card side-b"><h5>${b.label}</h5><div class="big-num">${b.totalTrees}</div><div class="small">עצים כולל שדרות</div></div>
+  </div>`;
+  tableHtml += `<table class="cmp-table"><thead><tr><th>מדד</th><th class="highlight-a">${a.label}</th><th class="highlight-b">${b.label}</th><th>הפרש</th></tr></thead><tbody>`;
+  metrics.forEach(m => {
+    let vA, vB, delta;
+    if (m.noNum) {
+      vA = m.a; vB = m.b; delta = '';
+    } else {
+      const d = m.fmt || 1;
+      vA = fmt(m.a, d);
+      vB = fmt(m.b, d);
+      if (m.a != null && m.b != null) {
+        const diff = m.a - m.b;
+        const pct = m.b !== 0 ? ((diff / Math.abs(m.b)) * 100) : 0;
+        delta = `<span class="cmp-delta">${diff >= 0 ? '+' : ''}${fmt(diff, d)} (${pct >= 0 ? '+' : ''}${fmt(pct, 1)}%)</span>`;
+      } else {
+        delta = '';
+      }
+    }
+    tableHtml += `<tr><td class="metric-name">${m.name}</td><td>${vA}</td><td>${vB}</td><td>${delta}</td></tr>`;
+  });
+  tableHtml += `</tbody></table>`;
+  document.getElementById('cmpResult').innerHTML = tableHtml;
+
+  // Chart colors
+  const colA = '#3b82f6', colB = '#7c3aed';
+
+  // 1. Grouped bar chart — key metrics
+  const barMetrics = ['totalTrees', 'avgGirth', 'medianGirth', 'stdGirth', 'avgHeight', 'density'];
+  const barNames = ['סה"כ עצים', 'ממוצע היקף', 'חציון היקף', 'σ היקף', 'ממוצע גובה', 'צפיפות'];
+  Plotly.newPlot('cmpChartBar', [
+    { x: barNames, y: barMetrics.map(k => a[k] || 0), type: 'bar', name: a.label, marker: { color: colA } },
+    { x: barNames, y: barMetrics.map(k => b[k] || 0), type: 'bar', name: b.label, marker: { color: colB } },
+  ], pltLay('השוואת מדדים עיקריים', { barmode: 'group' }), pltCfg);
+
+  // 2. Radar chart — normalized comparison
+  const radarKeys = ['totalTrees', 'avgGirth', 'medianGirth', 'avgHeight', 'area', 'density'];
+  const radarLabels = ['סה"כ עצים', 'ממוצע היקף', 'חציון היקף', 'ממוצע גובה', 'שטח', 'צפיפות'];
+  const maxVals = radarKeys.map(k => Math.max(Math.abs(a[k] || 0), Math.abs(b[k] || 0)) || 1);
+  Plotly.newPlot('cmpChartRadar', [
+    { type: 'scatterpolar', r: radarKeys.map((k, i) => ((a[k] || 0) / maxVals[i]) * 100).concat([(a[radarKeys[0]] || 0) / maxVals[0] * 100]),
+      theta: radarLabels.concat([radarLabels[0]]), fill: 'toself', name: a.label, line: { color: colA }, opacity: 0.7 },
+    { type: 'scatterpolar', r: radarKeys.map((k, i) => ((b[k] || 0) / maxVals[i]) * 100).concat([(b[radarKeys[0]] || 0) / maxVals[0] * 100]),
+      theta: radarLabels.concat([radarLabels[0]]), fill: 'toself', name: b.label, line: { color: colB }, opacity: 0.7 },
+  ], pltLay('פרופיל השוואתי (מנורמל)', { polar: { radialaxis: { visible: true, range: [0, 105] } } }), pltCfg);
+
+  // 3. Box plots — girth + height side by side
+  Plotly.newPlot('cmpChartBox', [
+    { y: girthsA, type: 'box', name: `היקף – ${a.label}`, marker: { color: colA }, boxmean: 'sd' },
+    { y: girthsB, type: 'box', name: `היקף – ${b.label}`, marker: { color: colB }, boxmean: 'sd' },
+    { y: heightsA, type: 'box', name: `גובה – ${a.label}`, marker: { color: colA }, boxmean: 'sd', opacity: 0.6 },
+    { y: heightsB, type: 'box', name: `גובה – ${b.label}`, marker: { color: colB }, boxmean: 'sd', opacity: 0.6 },
+  ], pltLay('Box Plot — התפלגות היקף וגובה'), pltCfg);
+
+  // 4. Overlapping histograms — girth distribution
+  Plotly.newPlot('cmpChartHist', [
+    { x: girthsA, type: 'histogram', name: a.label, marker: { color: colA }, opacity: 0.6, nbinsx: 20 },
+    { x: girthsB, type: 'histogram', name: b.label, marker: { color: colB }, opacity: 0.6, nbinsx: 20 },
+  ], pltLay('התפלגות היקף — השוואה', { barmode: 'overlay', xaxis: { title: 'היקף' }, yaxis: { title: 'מספר עצים' } }), pltCfg);
+
+  // 5. Scatter plot — girth vs height for both sides
+  const pairsA = ptsA.filter(t => t.girth != null && !isNaN(t.girth) && t.height != null && !isNaN(t.height));
+  const pairsB = ptsB.filter(t => t.girth != null && !isNaN(t.girth) && t.height != null && !isNaN(t.height));
+  Plotly.newPlot('cmpChartScatter', [
+    { x: pairsA.map(t => t.girth), y: pairsA.map(t => t.height),
+      mode: 'markers', name: a.label, marker: { color: colA, size: 5, opacity: 0.5 }, type: 'scatter' },
+    { x: pairsB.map(t => t.girth), y: pairsB.map(t => t.height),
+      mode: 'markers', name: b.label, marker: { color: colB, size: 5, opacity: 0.5 }, type: 'scatter' },
+  ], pltLay('היקף מול גובה — השוואה', { xaxis: { title: 'היקף' }, yaxis: { title: 'גובה' } }), pltCfg);
+}
+
+function initCompareUI() {
+  populateCmpSelect('cmpTypeA', 'cmpSelA');
+  populateCmpSelect('cmpTypeB', 'cmpSelB');
+
+  // populate filter dropdowns
+  const stSel = document.getElementById('cmpFilterSpaceType');
+  const types = [...new Set(DATA.polygons.map(p => p.space_type).filter(Boolean))];
+  types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; stSel.appendChild(o); });
+
+  const saSel = document.getElementById('cmpFilterSA');
+  DATA.superAreas.forEach(sa => { const o = document.createElement('option'); o.value = sa.code; o.textContent = `${sa.code} – ${sa.name_he || ''}`; saSel.appendChild(o); });
+
+  document.getElementById('cmpTypeA').addEventListener('change', () => populateCmpSelect('cmpTypeA', 'cmpSelA'));
+  document.getElementById('cmpTypeB').addEventListener('change', () => populateCmpSelect('cmpTypeB', 'cmpSelB'));
+  document.getElementById('cmpFilterSpaceType').addEventListener('change', applyCmpFilters);
+  document.getElementById('cmpFilterSA').addEventListener('change', applyCmpFilters);
+  document.getElementById('btnCompare').addEventListener('click', runComparison);
+}
+
+/* ---------- master update ---------- */
+function updateAll() {
+  _polyStatsCache = {};
+  _saStatsCache = {};
+  drawMap();
+  updateKPIs();
+  renderPolyList();
+  renderSAList();
+  renderSADetail();
+  updateOverviewCharts();
+  updateCharts();
+  updateAdvancedCharts();
+  updateSACharts();
+  updateGroupsChart();
+}
+
+function configureUpdateUI() {
+  const btn = document.getElementById('btnUpdateSheets');
+  const note = document.getElementById('hostingModeNote');
+  if (!btn || !note) return;
+
+  if (isLocalHost) {
+    note.textContent = 'עדכון ישיר זמין רק בהרצה מקומית עם server.js וקבצי CSV.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.title = 'ב-GitHub Pages אין API לעדכון אוטומטי';
+  note.textContent = 'בגרסת האתר מ-GitHub מעדכנים נתונים על ידי יצירת data.json חדש מקומית והעלאתו ל-Git.';
+}
+
+/* ---------- update from sheets ---------- */
+async function updateFromSheets() {
+  const btn = document.getElementById('btnUpdateSheets');
+  const status = document.getElementById('updateStatus');
+
+  if (!isLocalHost) {
+    status.textContent = 'באתר שמוגש מ-GitHub Pages אין עדכון ישיר. יש להריץ updateFromSheets.js מקומית ולהעלות את data.json החדש.';
+    status.style.color = 'var(--warn)';
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = 'טוען עדכון...';
+  status.style.color = 'var(--warn)';
+  
+  try {
+    const resp = await fetch('/api/update');
+    if (!resp.ok) throw new Error('שרת העדכון לא זמין');
+    const result = await resp.json();
+    
+    if (result.success) {
+      // Reload data.json
+      const resp2 = await fetch('data.json?t=' + Date.now());
+      DATA = await resp2.json();
+      buildSuperAreas();
+      _polyStatsCache = {};
+      _saStatsCache = {};
+      updateAll();
+      
+      status.textContent = '✓ עודכן בהצלחה! ' + (DATA.lastUpdated ? new Date(DATA.lastUpdated).toLocaleString('he-IL') : '');
+      status.style.color = 'var(--accent)';
+    } else {
+      throw new Error(result.error || 'Update failed');
+    }
+  } catch (err) {
+    status.textContent = '✗ שגיאה: ' + err.message;
+    status.style.color = 'var(--danger)';
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { status.textContent = ''; }, 5000);
+  }
+}
+
+/* ---------- init ---------- */
+function init() {
+  setBase('osm');
+  initGroupsUI();
+  initCompareUI();
+  configureUpdateUI();
+  renderAvenues();
+  updateAll();
+  fitToData();
+
+  // Tab switching
+  Array.from(document.querySelectorAll('.tabbtn')).forEach(btn => btn.onclick = () => {
+    document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    // Re-render charts when tab becomes visible (Plotly needs visible containers)
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
+  });
+
+  // Map controls
+  document.getElementById('basemapSel').addEventListener('change', e => setBase(e.target.value));
+  ['chkPolys', 'chkTrees', 'chkLines', 'chkLabels'].forEach(id => document.getElementById(id).addEventListener('change', drawMap));
+  document.getElementById('btnShowAll').onclick = () => {
+    ['chkPolys', 'chkTrees', 'chkLines', 'chkLabels'].forEach(id => document.getElementById(id).checked = true);
+    drawMap();
+  };
+  document.getElementById('btnFit').onclick = fitToData;
+  document.getElementById('btnClearSel').onclick = () => { selectedPolygon = null; selectedSA = null; updateAll(); };
+  document.getElementById('searchPoly').addEventListener('input', () => { selectedPolygon = null; selectedSA = null; updateAll(); });
+  document.getElementById('btnSaveGroup').onclick = saveGroup;
+  document.getElementById('btnApplySpacing').onclick = () => { renderAvenues(); updateAll(); };
+  document.getElementById('btnExportCSV').onclick = exportCSV;
+  const updateBtn = document.getElementById('btnUpdateSheets');
+  if (updateBtn) updateBtn.onclick = updateFromSheets;
+}
+
+/* ---------- launch ---------- */
+loadData();

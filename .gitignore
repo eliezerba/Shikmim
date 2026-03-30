@@ -1,0 +1,42 @@
+# Node modules
+node_modules/
+package-lock.json
+npm-debug.log
+
+# OS files
+.DS_Store
+Thumbs.db
+*~
+~$*
+
+# Excel / raw data files (data is already in data.json)
+*.xlsx
+*.xls
+
+# Editor config
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Google Sheets credentials
+*.json.key
+credentials.json
+.env
+.env.local
+
+# Compiled/generated
+*.pyc
+__pycache__/
+dist/
+build/
+
+# Local testing
+*.log
+test-output/
+
+# CSV exports (local only)
+trees.csv
+avenues.csv
+polygons.csv
+distribution.csv
