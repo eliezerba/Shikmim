@@ -15,7 +15,12 @@ main{display:grid;grid-template-columns:1fr 460px;height:calc(100vh - 56px);over
 
 /* === Float Panel on Map === */
 .float{position:absolute;top:12px;left:12px;z-index:1000;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.13);padding:14px;width:280px;max-height:calc(100vh - 120px);overflow-y:auto}
-.float h4{margin:0 0 10px 0;font-size:15px;color:var(--primary)}
+.float-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.float h4{margin:0;font-size:15px;color:var(--primary)}
+.float-toggle{background:none;border:none;cursor:pointer;color:var(--primary);font-size:13px;padding:2px 6px;border-radius:6px;line-height:1;transition:transform .2s,background .15s}
+.float-toggle:hover{background:var(--primary);color:#fff}
+#floatBody.collapsed{display:none}
+.float-toggle.collapsed{transform:rotate(180deg)}
 .float select,.float input[type=text],.float input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px}
 .float label{display:flex;align-items:center;gap:6px;font-size:13px;margin:4px 0;cursor:pointer}
 .float .row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}

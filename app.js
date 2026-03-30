@@ -966,67 +966,68 @@ function updateSelectionDetail() {
     const st = computePolyStats(selectedPolygon);
     el.innerHTML = `
       <div class="card">
-        <div class="detail-header"><span class="poly-code">${st.polygon}</span><span class="poly-name">${st.name_he} (${st.name_en})</span></div>
+        <div class="detail-header"><span class="poly-code">${st.polygon}</span><span class="poly-name">${LANG==='he' ? (st.name_he||st.name_en) : (st.name_en||st.name_he)}</span></div>
         <div class="detail-grid">
-          <div class="card"><h5>" + t('tree_data') + "</h5>
-            <div class="stat-row"><span class="stat-label">" + t('mapped_trees') + "</span><span class="stat-value">${st.treeCount}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('avenue_trees') + "</span><span class="stat-value">${st.avenueTrees}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('total_trees') + "</span><span class="stat-value">${st.totalTrees}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('avenues_tab') + "</span><span class="stat-value">${st.avenueCount}</span></div>
+          <div class="card"><h5>${t('tree_data')}</h5>
+            <div class="stat-row"><span class="stat-label">${t('mapped_trees')}</span><span class="stat-value">${st.treeCount}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('avenue_trees')}</span><span class="stat-value">${st.avenueTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('total_trees')}</span><span class="stat-value">${st.totalTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('avenues_tab')}</span><span class="stat-value">${st.avenueCount}</span></div>
           </div>
-          <div class="card"><h5>" + t('girth_stats') + "</h5>
-            <div class="stat-row"><span class="stat-label">" + t('avg_girth') + "</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('median_girth') + "</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('std_girth') + "</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('min_girth') + "</span><span class="stat-value">${fmt(st.minGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('max_girth') + "</span><span class="stat-value">${fmt(st.maxGirth)}</span></div>
+          <div class="card"><h5>${t('girth_stats')}</h5>
+            <div class="stat-row"><span class="stat-label">${t('avg_girth')}</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('median_girth')}</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('std_girth')}</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('min_girth')}</span><span class="stat-value">${fmt(st.minGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('max_girth')}</span><span class="stat-value">${fmt(st.maxGirth)}</span></div>
           </div>
-          <div class="card"><h5>" + t('height_stats') + "</h5>
-            <div class="stat-row"><span class="stat-label">" + t('avg_height') + "</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('median_girth') + "</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('std_height') + "</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('min_height') + "</span><span class="stat-value">${fmt(st.minHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('max_height') + "</span><span class="stat-value">${fmt(st.maxHeight)}</span></div>
+          <div class="card"><h5>${t('height_stats')}</h5>
+            <div class="stat-row"><span class="stat-label">${t('avg_height')}</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('median_girth')}</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('std_height')}</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('min_height')}</span><span class="stat-value">${fmt(st.minHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('max_height')}</span><span class="stat-value">${fmt(st.maxHeight)}</span></div>
           </div>
-          <div class="card"><h5>" + t('space_info') + "</h5>
-            <div class="stat-row"><span class="stat-label">" + t('area_acres') + "</span><span class="stat-value">${fmt(st.area)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('space_type') + "</span><span class="stat-value">${st.space_type}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('super_area_code') + "</span><span class="stat-value">${st.space_code}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('avg_density') + "</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
-            <div class="stat-row"><span class="stat-label">" + t('line_length') + "</span><span class="stat-value">${fmt(st.totalLineLength)}</span></div>
+          <div class="card"><h5>${t('space_info')}</h5>
+            <div class="stat-row"><span class="stat-label">${t('area_acres')}</span><span class="stat-value">${fmt(st.area)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('space_type')}</span><span class="stat-value">${st.space_type}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('super_area_code')}</span><span class="stat-value">${st.space_code}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('avg_density')}</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('line_length')}</span><span class="stat-value">${fmt(st.totalLineLength)}</span></div>
           </div>
         </div>
       </div>`;
   } else if (selectedSA) {
     const sa = DATA.superAreas.find(s => s.code === selectedSA);
     const st = computeSAStats(sa);
+    const saName = LANG === 'he' ? (st.name_he || st.name_en) : (st.name_en || st.name_he);
     el.innerHTML = `
       <div class="card">
-        <div class="detail-header"><span class="poly-code">${st.code}</span><span class="poly-name">אזור-על: ${st.name_he}</span></div>
-        <div class="small">פוליגונים: ${st.polygons.join(', ')}</div>
+        <div class="detail-header"><span class="poly-code">${st.code}</span><span class="poly-name">${t('super_area_code')}: ${saName}</span></div>
+        <div class="small">${t('polygons')}: ${st.polygons.join(', ')}</div>
         <div class="detail-grid">
-          <div class="card"><h5>נתוני עצים</h5>
-            <div class="stat-row"><span class="stat-label">עצים במיפוי</span><span class="stat-value">${st.treeCount}</span></div>
-            <div class="stat-row"><span class="stat-label">עצי שדרה</span><span class="stat-value">${st.avenueTrees}</span></div>
-            <div class="stat-row"><span class="stat-label">סה"כ</span><span class="stat-value">${st.totalTrees}</span></div>
-            <div class="stat-row"><span class="stat-label">שדרות</span><span class="stat-value">${st.avenueCount}</span></div>
+          <div class="card"><h5>${t('tree_data')}</h5>
+            <div class="stat-row"><span class="stat-label">${t('mapped_trees')}</span><span class="stat-value">${st.treeCount}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('avenue_trees')}</span><span class="stat-value">${st.avenueTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('total_trees')}</span><span class="stat-value">${st.totalTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('avenues_tab')}</span><span class="stat-value">${st.avenueCount}</span></div>
           </div>
-          <div class="card"><h5>היקף</h5>
-            <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">סטיית תקן</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">מינ/מקס</span><span class="stat-value">${fmt(st.minGirth)} – ${fmt(st.maxGirth)}</span></div>
+          <div class="card"><h5>${t('girth_stats')}</h5>
+            <div class="stat-row"><span class="stat-label">${t('avg_girth')}</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('median_girth')}</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('std_girth')}</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('min_girth')}/${t('max_girth')}</span><span class="stat-value">${fmt(st.minGirth)} – ${fmt(st.maxGirth)}</span></div>
           </div>
-          <div class="card"><h5>גובה</h5>
-            <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">סטיית תקן</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">מינ/מקס</span><span class="stat-value">${fmt(st.minHeight)} – ${fmt(st.maxHeight)}</span></div>
+          <div class="card"><h5>${t('height_stats')}</h5>
+            <div class="stat-row"><span class="stat-label">${t('avg_height')}</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('median_girth')}</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('std_height')}</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('min_height')}/${t('max_height')}</span><span class="stat-value">${fmt(st.minHeight)} – ${fmt(st.maxHeight)}</span></div>
           </div>
-          <div class="card"><h5>שטח</h5>
-            <div class="stat-row"><span class="stat-label">שטח כולל</span><span class="stat-value">${fmt(st.totalArea)} acres</span></div>
-            <div class="stat-row"><span class="stat-label">צפיפות</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
-            <div class="stat-row"><span class="stat-label">סוגי שטח</span><span class="stat-value">${st.spaceTypes.join(', ')}</span></div>
+          <div class="card"><h5>${t('space_info')}</h5>
+            <div class="stat-row"><span class="stat-label">${t('area_acres')}</span><span class="stat-value">${fmt(st.totalArea)} ac</span></div>
+            <div class="stat-row"><span class="stat-label">${t('avg_density')}</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t('space_type')}</span><span class="stat-value">${st.spaceTypes.join(', ')}</span></div>
           </div>
         </div>
       </div>`;
@@ -1793,6 +1794,14 @@ function init() {
   // Language toggle
   document.getElementById('btnToggleLang').onclick = toggleLanguage;
 
+  // Float panel collapse toggle
+  document.getElementById('btnFloatToggle').onclick = function() {
+    const body = document.getElementById('floatBody');
+    const isCollapsed = body.classList.toggle('collapsed');
+    this.textContent = isCollapsed ? '▼' : '▲';
+    this.setAttribute('aria-expanded', String(!isCollapsed));
+  };
+
   // Tab switching
   Array.from(document.querySelectorAll('.tabbtn')).forEach(btn => btn.onclick = () => {
     document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
@@ -1841,7 +1850,7 @@ function retranslateUI() {
   // Update header
   document.querySelector('header span:first-child').textContent = LANG === 'he' ? 'דשבורד מחקרי — שקמים, פוליגונים ואזורי-על' : 'Research Dashboard — Sycamores, Polygons & Super-areas';
   // Float panel heading
-  document.querySelector('.float h4').textContent = t('layers_maps');
+  document.getElementById('floatTitle').textContent = t('layers_maps');
   // Buttons and inputs
   document.getElementById('btnShowAll').textContent = t('show_all');
   document.getElementById('btnFit').textContent = t('zoom_fit');

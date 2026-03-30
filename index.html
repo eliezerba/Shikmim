@@ -21,8 +21,12 @@
 <main>
 <div id="mapWrap">
   <div id="map"></div>
-  <div class="float">
-    <h4>שכבות ומפה</h4>
+  <div class="float" id="floatPanel">
+    <div class="float-header">
+      <h4 id="floatTitle">שכבות ומפה</h4>
+      <button id="btnFloatToggle" class="float-toggle" title="קפל / פתח" aria-expanded="true">▲</button>
+    </div>
+    <div id="floatBody">
     <select id="basemapSel">
       <optgroup label="מפות בסיס">
         <option value="osm">OSM מודרני</option>
@@ -64,8 +68,9 @@
     <div id="updateStatus" class="small mt8" style="color:var(--text2)"></div>
     <div id="hostingModeNote" class="small mt8"></div>
     <div class="small mt8">קואורדינטות EPSG:3857 → WGS84</div>
-  </div>
-</div>
+    </div><!-- /floatBody -->
+  </div><!-- /floatPanel -->
+</div><!-- /mapWrap -->
 
 <div id="side">
   <div class="tabs" id="tabsBar">
