@@ -1,6 +1,123 @@
 /* ===== Shikmim Research Dashboard v8 - app.js ===== */
 "use strict";
 
+/* ---------- Language & Translations ---------- */
+let LANG = localStorage.getItem('shikmim_lang') || 'he';
+const TRANSLATIONS = {
+  he: {
+    loading_data: 'טוען נתונים...',
+    error_loading: 'שגיאה בטעינה: ',
+    data_error: 'לא ניתן לטעון את data.json',
+    trees: 'עצים',
+    polygons: 'פוליגונים',
+    avenues: 'שדרות',
+    avg_girth: 'ממוצע היקף',
+    avg_height: 'ממוצע גובה',
+    total_area: 'שטח כולל (acres)',
+    median_girth: 'חציון היקף',
+    super_areas: 'אזורי-על',
+    avg_density: 'צפיפות ממוצעת',
+    layers_maps: 'שכבות ומפה',
+    modern_osm: 'OSM מודרני',
+    satellite: 'לוויין (Esri)',
+    search_polygon: 'חפש פוליגון / שם...',
+    show_all: 'הצג הכל',
+    zoom_fit: 'זום לנתונים',
+    clear_selection: 'נקה בחירה',
+    export_csv: 'ייצוא CSV',
+    update_data: 'עדכון נתונים',
+    coordinates: 'קואורדינטות EPSG:3857 → WGS84',
+    overview: 'סקירה',
+    polygons_tab: 'פוליגונים',
+    super_areas_tab: 'אזורי-על',
+    analytics: 'הדמיות',
+    advanced: 'ניתוח מתקדם',
+    groups: 'קבוצות',
+    compare: 'השוואה',
+    avenues_tab: 'שדרות',
+    click_polygon: 'לחצו על פוליגון לצפייה מפורטת ולמיקוד על המפה',
+    no_data: 'לחצו על פוליגון במפה או ברשימה כדי לראות נתונים מפורטים',
+    group_name: 'שם קבוצה',
+    save_group: 'שמור קבוצה',
+    super_area_advanced: 'אזורי-על (מקובצים לפי space_code / טור E). לחצו לפירוט.',
+    choose_units: 'בחרו שתי יחידות להשוואה: פוליגון, קבוצה או אזור-על. ניתן גם לסנן לפי מאפיינים.',
+    side_a: 'צד א׳',
+    side_b: 'צד ב׳',
+    polygon: 'פוליגון',
+    group: 'קבוצה',
+    super_area: 'אזור-על',
+    all: 'הכל',
+    filter_space_type: 'סינון לפי סוג שטח:',
+    filter_sa: 'סינון לפי אזור-על:',
+    compare_btn: 'השווה',
+    avenue_def: 'הגדרת מרווח שתילה → אומדן עצים בשדרות → עדכון נתוני הפוליגון/קבוצה/אזור-על.',
+    hosted_locally: 'עדכון ישיר זמין רק בהרצה מקומית עם server.js וקבצי CSV.',
+    github_pages_note: 'בגרסת האתר מ-GitHub מעדכנים נתונים על ידי יצירת data.json חדש מקומית והעלאתו ל-Git.',
+    updating: 'טוען עדכון...',
+    server_unavailable: 'שרת העדכון לא זמין',
+    success_update: 'עודכן בהצלחה!',
+    language: 'English',
+  },
+  en: {
+    loading_data: 'Loading data...',
+    error_loading: 'Loading error: ',
+    data_error: 'Unable to load data.json',
+    trees: 'Trees',
+    polygons: 'Polygons',
+    avenues: 'Avenues',
+    avg_girth: 'Avg Girth',
+    avg_height: 'Avg Height',
+    total_area: 'Total Area (acres)',
+    median_girth: 'Median Girth',
+    super_areas: 'Super-areas',
+    avg_density: 'Avg Density',
+    layers_maps: 'Layers & Map',
+    modern_osm: 'Modern OSM',
+    satellite: 'Satellite (Esri)',
+    search_polygon: 'Search polygon / name...',
+    show_all: 'Show All',
+    zoom_fit: 'Zoom to Fit',
+    clear_selection: 'Clear Selection',
+    export_csv: 'Export CSV',
+    update_data: 'Update Data',
+    coordinates: 'Coordinates EPSG:3857 → WGS84',
+    overview: 'Overview',
+    polygons_tab: 'Polygons',
+    super_areas_tab: 'Super-areas',
+    analytics: 'Analytics',
+    advanced: 'Advanced Analysis',
+    groups: 'Groups',
+    compare: 'Compare',
+    avenues_tab: 'Avenues',
+    click_polygon: 'Click on a polygon for details and zoom',
+    no_data: 'Click on a polygon on the map or list to see details',
+    group_name: 'Group Name',
+    save_group: 'Save Group',
+    super_area_advanced: 'Super-areas (grouped by space_code). Click for details.',
+    choose_units: 'Choose two units to compare: polygon, group, or super-area. Filter by attributes too.',
+    side_a: 'Side A',
+    side_b: 'Side B',
+    polygon: 'Polygon',
+    group: 'Group',
+    super_area: 'Super-area',
+    all: 'All',
+    filter_space_type: 'Filter by space type:',
+    filter_sa: 'Filter by super-area:',
+    compare_btn: 'Compare',
+    avenue_def: 'Set planting spacing → Estimate avenue trees → Update polygon/group/super-area data.',
+    hosted_locally: 'Direct update available only when running locally with server.js and CSV files.',
+    github_pages_note: 'On GitHub Pages, update by creating new data.json locally and uploading to Git.',
+    updating: 'Loading update...',
+    server_unavailable: 'Update server unavailable',
+    success_update: 'Updated successfully!',
+    language: 'עברית',
+  }
+};
+
+function t(key) {
+  return TRANSLATIONS[LANG][key] || key;
+}
+
 /* ---------- globals ---------- */
 let DATA = null;
 let GROUPS = [];
@@ -50,13 +167,13 @@ const pltLay = (title, extra) => Object.assign({ title, font: { family: 'Segoe U
 async function loadData() {
   try {
     const resp = await fetch('data.json');
-    if (!resp.ok) throw new Error('לא ניתן לטעון את data.json');
+    if (!resp.ok) throw new Error(t('data_error'));
     DATA = await resp.json();
     buildSuperAreas();
     init();
-    document.getElementById('statusText').textContent = `${DATA.points.length} עצים | ${DATA.polygons.length} פוליגונים | ${DATA.lines.length} שדרות`;
+    document.getElementById('statusText').textContent = `${DATA.points.length} ${t('trees')} | ${DATA.polygons.length} ${t('polygons')} | ${DATA.lines.length} ${t('avenues')}`;
   } catch (e) {
-    document.getElementById('statusText').textContent = 'שגיאה בטעינה: ' + e.message;
+    document.getElementById('statusText').textContent = t('error_loading') + e.message;
     console.error(e);
   }
 }
@@ -1122,6 +1239,9 @@ function init() {
   updateAll();
   fitToData();
 
+  // Language toggle
+  document.getElementById('btnToggleLang').onclick = toggleLanguage;
+
   // Tab switching
   Array.from(document.querySelectorAll('.tabbtn')).forEach(btn => btn.onclick = () => {
     document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
@@ -1149,6 +1269,38 @@ function init() {
   document.getElementById('btnExportCSV').onclick = exportCSV;
   const updateBtn = document.getElementById('btnUpdateSheets');
   if (updateBtn) updateBtn.onclick = updateFromSheets;
+}
+
+function toggleLanguage() {
+  LANG = LANG === 'he' ? 'en' : 'he';
+  localStorage.setItem('shikmim_lang', LANG);
+  const doc = document.documentElement;
+  doc.lang = LANG;
+  doc.dir = LANG === 'he' ? 'rtl' : 'ltr';
+  document.getElementById('btnToggleLang').textContent = t('language');
+  retranslateUI();
+  updateAll();
+}
+
+function retranslateUI() {
+  // Update header
+  document.querySelector('header span:first-child').textContent = LANG === 'he' ? 'דשבורד מחקרי — שקמים, פוליגונים ואזורי-על' : 'Research Dashboard — Sycamores, Polygons & Super-areas';
+  // Float panel heading
+  document.querySelector('.float h4').textContent = t('layers_maps');
+  // Buttons and inputs
+  document.getElementById('btnShowAll').textContent = t('show_all');
+  document.getElementById('btnFit').textContent = t('zoom_fit');
+  document.getElementById('searchPoly').placeholder = t('search_polygon');
+  document.getElementById('btnClearSel').textContent = t('clear_selection');
+  document.getElementById('btnExportCSV').textContent = t('export_csv');
+  document.getElementById('btnUpdateSheets').textContent = t('update_data');
+  document.querySelector('.float .small.mt8').textContent = t('coordinates');
+  // Tabs
+  const tabKeyMap = ['overview', 'polygons_tab', 'super_areas_tab', 'analytics', 'advanced', 'groups', 'compare', 'avenues_tab'];
+  document.querySelectorAll('.tabbtn').forEach((btn, i) => btn.textContent = t(tabKeyMap[i]));
+  // KPI labels
+  const kpiKeyMap = ['trees', 'polygons', 'avenues', 'avg_girth', 'avg_height', 'total_area', 'median_girth', 'super_areas', 'avg_density'];
+  document.querySelectorAll('.kpi .label').forEach((el, i) => el.textContent = t(kpiKeyMap[i]));
 }
 
 /* ---------- launch ---------- */
