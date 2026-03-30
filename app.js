@@ -5,9 +5,12 @@
 let LANG = localStorage.getItem('shikmim_lang') || 'he';
 const TRANSLATIONS = {
   he: {
+    // UI Headers & Basic
     loading_data: 'טוען נתונים...',
     error_loading: 'שגיאה בטעינה: ',
     data_error: 'לא ניתן לטעון את data.json',
+    
+    // Metrics & Data
     trees: 'עצים',
     polygons: 'פוליגונים',
     avenues: 'שדרות',
@@ -17,9 +20,23 @@ const TRANSLATIONS = {
     median_girth: 'חציון היקף',
     super_areas: 'אזורי-על',
     avg_density: 'צפיפות ממוצעת',
+    std_girth: 'סטיית תקן היקף',
+    std_height: 'סטיית תקן גובה',
+    min_girth: 'מינימום היקף',
+    max_girth: 'מקסימום היקף',
+    min_height: 'מינימום גובה',
+    max_height: 'מקסימום גובה',
+    area_acres: 'שטח (acres)',
+    space_type: 'סוג שטח',
+    super_area_code: 'אזור-על',
+    line_length: 'אורך שדרות',
+    
+    // Float Panel
     layers_maps: 'שכבות ומפה',
     modern_osm: 'OSM מודרני',
     satellite: 'לוויין (Esri)',
+    pom_maps: 'Palestine Open Maps',
+    combinations: 'שילובים',
     search_polygon: 'חפש פוליגון / שם...',
     show_all: 'הצג הכל',
     zoom_fit: 'זום לנתונים',
@@ -27,6 +44,8 @@ const TRANSLATIONS = {
     export_csv: 'ייצוא CSV',
     update_data: 'עדכון נתונים',
     coordinates: 'קואורדינטות EPSG:3857 → WGS84',
+    
+    // Tabs
     overview: 'סקירה',
     polygons_tab: 'פוליגונים',
     super_areas_tab: 'אזורי-על',
@@ -35,12 +54,17 @@ const TRANSLATIONS = {
     groups: 'קבוצות',
     compare: 'השוואה',
     avenues_tab: 'שדרות',
+    
+    // Descriptions
     click_polygon: 'לחצו על פוליגון לצפייה מפורטת ולמיקוד על המפה',
     no_data: 'לחצו על פוליגון במפה או ברשימה כדי לראות נתונים מפורטים',
-    group_name: 'שם קבוצה',
-    save_group: 'שמור קבוצה',
     super_area_advanced: 'אזורי-על (מקובצים לפי space_code / טור E). לחצו לפירוט.',
     choose_units: 'בחרו שתי יחידות להשוואה: פוליגון, קבוצה או אזור-על. ניתן גם לסנן לפי מאפיינים.',
+    avenue_def: 'הגדרת מרווח שתילה → אומדן עצים בשדרות → עדכון נתוני הפוליגון/קבוצה/אזור-על.',
+    
+    // Groups & Comparison
+    group_name: 'שם קבוצה',
+    save_group: 'שמור קבוצה',
     side_a: 'צד א׳',
     side_b: 'צד ב׳',
     polygon: 'פוליגון',
@@ -50,18 +74,51 @@ const TRANSLATIONS = {
     filter_space_type: 'סינון לפי סוג שטח:',
     filter_sa: 'סינון לפי אזור-על:',
     compare_btn: 'השווה',
-    avenue_def: 'הגדרת מרווח שתילה → אומדן עצים בשדרות → עדכון נתוני הפוליגון/קבוצה/אזור-על.',
+    
+    // Detail Cards
+    tree_data: 'נתוני עצים',
+    mapped_trees: 'עצים במיפוי',
+    avenue_trees: 'עצי שדרה (אומדן)',
+    total_trees: 'סה"כ עצים',
+    girth_stats: 'היקף (Girth)',
+    height_stats: 'גובה (Height)',
+    area_info: 'שטח',
+    space_info: 'שטח ומרחב',
+    
+    // Stats Detailed
+    stdev: 'סטיית תקן',
+    range: 'טווח',
+    
+    // Chart Titles
+    trees_per_polygon: 'עצים לפי פוליגון (כולל אומדן שדרות)',
+    space_types_dist: 'סוגי שטחים',
+    girth_vs_height: 'היקף מול גובה',
+    super_area_comparison: 'השוואת אזורי-על',
+    girth_profile: 'פרופיל היקף לפי אזור-על',
+    super_area_radar: 'פרופיל אזורי-על (Radar)',
+    girth_distribution: 'התפלגות היקף',
+    height_distribution: 'התפלגות גובה',
+    
+    // Updates
     hosted_locally: 'עדכון ישיר זמין רק בהרצה מקומית עם server.js וקבצי CSV.',
     github_pages_note: 'בגרסת האתר מ-GitHub מעדכנים נתונים על ידי יצירת data.json חדש מקומית והעלאתו ל-Git.',
     updating: 'טוען עדכון...',
     server_unavailable: 'שרת העדכון לא זמין',
     success_update: 'עודכן בהצלחה!',
     language: 'English',
+    
+    // Legends
+    mapped: 'במיפוי',
+    estimated: 'אומדן',
+    
   },
   en: {
+    // UI Headers & Basic
     loading_data: 'Loading data...',
     error_loading: 'Loading error: ',
     data_error: 'Unable to load data.json',
+    
+    // Metrics & Data
     trees: 'Trees',
     polygons: 'Polygons',
     avenues: 'Avenues',
@@ -71,9 +128,23 @@ const TRANSLATIONS = {
     median_girth: 'Median Girth',
     super_areas: 'Super-areas',
     avg_density: 'Avg Density',
+    std_girth: 'Std Girth',
+    std_height: 'Std Height',
+    min_girth: 'Min Girth',
+    max_girth: 'Max Girth',
+    min_height: 'Min Height',
+    max_height: 'Max Height',
+    area_acres: 'Area (acres)',
+    space_type: 'Space Type',
+    super_area_code: 'Super-area',
+    line_length: 'Avenue Length',
+    
+    // Float Panel
     layers_maps: 'Layers & Map',
     modern_osm: 'Modern OSM',
     satellite: 'Satellite (Esri)',
+    pom_maps: 'Palestine Open Maps',
+    combinations: 'Combinations',
     search_polygon: 'Search polygon / name...',
     show_all: 'Show All',
     zoom_fit: 'Zoom to Fit',
@@ -81,6 +152,8 @@ const TRANSLATIONS = {
     export_csv: 'Export CSV',
     update_data: 'Update Data',
     coordinates: 'Coordinates EPSG:3857 → WGS84',
+    
+    // Tabs
     overview: 'Overview',
     polygons_tab: 'Polygons',
     super_areas_tab: 'Super-areas',
@@ -89,12 +162,17 @@ const TRANSLATIONS = {
     groups: 'Groups',
     compare: 'Compare',
     avenues_tab: 'Avenues',
+    
+    // Descriptions
     click_polygon: 'Click on a polygon for details and zoom',
     no_data: 'Click on a polygon on the map or list to see details',
-    group_name: 'Group Name',
-    save_group: 'Save Group',
     super_area_advanced: 'Super-areas (grouped by space_code). Click for details.',
     choose_units: 'Choose two units to compare: polygon, group, or super-area. Filter by attributes too.',
+    avenue_def: 'Set planting spacing → Estimate avenue trees → Update polygon/group/super-area data.',
+    
+    // Groups & Comparison
+    group_name: 'Group Name',
+    save_group: 'Save Group',
     side_a: 'Side A',
     side_b: 'Side B',
     polygon: 'Polygon',
@@ -104,13 +182,42 @@ const TRANSLATIONS = {
     filter_space_type: 'Filter by space type:',
     filter_sa: 'Filter by super-area:',
     compare_btn: 'Compare',
-    avenue_def: 'Set planting spacing → Estimate avenue trees → Update polygon/group/super-area data.',
+    
+    // Detail Cards
+    tree_data: 'Tree Data',
+    mapped_trees: 'Mapped Trees',
+    avenue_trees: 'Avenue Trees (Est)',
+    total_trees: 'Total Trees',
+    girth_stats: 'Girth Statistics',
+    height_stats: 'Height Statistics',
+    area_info: 'Area',
+    space_info: 'Area & Space',
+    
+    // Stats Detailed
+    stdev: 'Std Dev',
+    range: 'Range',
+    
+    // Chart Titles
+    trees_per_polygon: 'Trees per Polygon (incl. avenue estimates)',
+    space_types_dist: 'Space Type Distribution',
+    girth_vs_height: 'Girth vs Height',
+    super_area_comparison: 'Super-area Comparison',
+    girth_profile: 'Girth Profile by Super-area',
+    super_area_radar: 'Super-area Profile (Radar)',
+    girth_distribution: 'Girth Distribution',
+    height_distribution: 'Height Distribution',
+    
+    // Updates
     hosted_locally: 'Direct update available only when running locally with server.js and CSV files.',
     github_pages_note: 'On GitHub Pages, update by creating new data.json locally and uploading to Git.',
     updating: 'Loading update...',
     server_unavailable: 'Update server unavailable',
     success_update: 'Updated successfully!',
     language: 'עברית',
+    
+    // Legends
+    mapped: 'Mapped',
+    estimated: 'Estimated',
   }
 };
 
@@ -426,32 +533,32 @@ function updateSelectionDetail() {
       <div class="card">
         <div class="detail-header"><span class="poly-code">${st.polygon}</span><span class="poly-name">${st.name_he} (${st.name_en})</span></div>
         <div class="detail-grid">
-          <div class="card"><h5>נתוני עצים</h5>
-            <div class="stat-row"><span class="stat-label">עצים במיפוי</span><span class="stat-value">${st.treeCount}</span></div>
-            <div class="stat-row"><span class="stat-label">עצי שדרה (אומדן)</span><span class="stat-value">${st.avenueTrees}</span></div>
-            <div class="stat-row"><span class="stat-label">סה"כ עצים</span><span class="stat-value">${st.totalTrees}</span></div>
-            <div class="stat-row"><span class="stat-label">שדרות</span><span class="stat-value">${st.avenueCount}</span></div>
+          <div class="card"><h5>" + t('tree_data') + "</h5>
+            <div class="stat-row"><span class="stat-label">" + t('mapped_trees') + "</span><span class="stat-value">${st.treeCount}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('avenue_trees') + "</span><span class="stat-value">${st.avenueTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('total_trees') + "</span><span class="stat-value">${st.totalTrees}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('avenues_tab') + "</span><span class="stat-value">${st.avenueCount}</span></div>
           </div>
-          <div class="card"><h5>היקף (Girth)</h5>
-            <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">סטיית תקן</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">מינימום</span><span class="stat-value">${fmt(st.minGirth)}</span></div>
-            <div class="stat-row"><span class="stat-label">מקסימום</span><span class="stat-value">${fmt(st.maxGirth)}</span></div>
+          <div class="card"><h5>" + t('girth_stats') + "</h5>
+            <div class="stat-row"><span class="stat-label">" + t('avg_girth') + "</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('median_girth') + "</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('std_girth') + "</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('min_girth') + "</span><span class="stat-value">${fmt(st.minGirth)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('max_girth') + "</span><span class="stat-value">${fmt(st.maxGirth)}</span></div>
           </div>
-          <div class="card"><h5>גובה (Height)</h5>
-            <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">סטיית תקן</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">מינימום</span><span class="stat-value">${fmt(st.minHeight)}</span></div>
-            <div class="stat-row"><span class="stat-label">מקסימום</span><span class="stat-value">${fmt(st.maxHeight)}</span></div>
+          <div class="card"><h5>" + t('height_stats') + "</h5>
+            <div class="stat-row"><span class="stat-label">" + t('avg_height') + "</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('median_girth') + "</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('std_height') + "</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('min_height') + "</span><span class="stat-value">${fmt(st.minHeight)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('max_height') + "</span><span class="stat-value">${fmt(st.maxHeight)}</span></div>
           </div>
-          <div class="card"><h5>שטח</h5>
-            <div class="stat-row"><span class="stat-label">שטח (acres)</span><span class="stat-value">${fmt(st.area)}</span></div>
-            <div class="stat-row"><span class="stat-label">סוג</span><span class="stat-value">${st.space_type}</span></div>
-            <div class="stat-row"><span class="stat-label">אזור-על</span><span class="stat-value">${st.space_code}</span></div>
-            <div class="stat-row"><span class="stat-label">צפיפות</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
-            <div class="stat-row"><span class="stat-label">אורך שדרות</span><span class="stat-value">${fmt(st.totalLineLength)}</span></div>
+          <div class="card"><h5>" + t('space_info') + "</h5>
+            <div class="stat-row"><span class="stat-label">" + t('area_acres') + "</span><span class="stat-value">${fmt(st.area)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('space_type') + "</span><span class="stat-value">${st.space_type}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('super_area_code') + "</span><span class="stat-value">${st.space_code}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('avg_density') + "</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
+            <div class="stat-row"><span class="stat-label">" + t('line_length') + "</span><span class="stat-value">${fmt(st.totalLineLength)}</span></div>
           </div>
         </div>
       </div>`;
@@ -489,7 +596,7 @@ function updateSelectionDetail() {
         </div>
       </div>`;
   } else {
-    el.innerHTML = '<div class="card small">לחצו על פוליגון במפה או ברשימה כדי לראות נתונים מפורטים</div>';
+    el.innerHTML = '<div class="card small">" + t('no_data') + "</div>';
   }
 }
 
@@ -500,8 +607,8 @@ function renderPolyList() {
     const st = computePolyStats(p.polygon);
     return `<div class="poly-item ${selectedPolygon === p.polygon ? 'selected' : ''}" data-poly="${p.polygon}">
       <span class="code">${p.polygon}</span>
-      <span class="info"><span class="name">${p.space_name_he || p.space_name || ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | צפיפות: ${fmt(st.density, 3)}</span>
-      <span class="trees-badge">${st.totalTrees} עצים</span>
+      <span class="info"><span class="name">${p.space_name_he || p.space_name || ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | ${t('avg_density')}: ${fmt(st.density, 3)}</span>
+      <span class="trees-badge">${st.totalTrees} ${t('trees')}</span>
     </div>`;
   }).join('');
   container.querySelectorAll('.poly-item').forEach(el => {
@@ -521,14 +628,14 @@ function renderSAList() {
     const st = computeSAStats(sa);
     return `<div class="sa-card ${selectedSA === sa.code ? 'selected' : ''}" data-sa="${sa.code}">
       <h5>${sa.code} — ${sa.name_he || sa.name_en || ''}</h5>
-      <div class="sa-polys">פוליגונים: ${sa.polygons.join(', ')}</div>
+      <div class="sa-polys">${t('polygons')}: ${sa.polygons.join(', ')}</div>
       <div class="sa-stats">
-        <div class="sa-stat"><div class="sv">${st.totalTrees}</div>עצים</div>
+        <div class="sa-stat"><div class="sv">${st.totalTrees}</div>${t('trees')}</div>
         <div class="sa-stat"><div class="sv">${fmt(st.totalArea)}</div>acres</div>
-        <div class="sa-stat"><div class="sv">${fmt(st.avgGirth)}</div>ממוצע היקף</div>
-        <div class="sa-stat"><div class="sv">${fmt(st.medianGirth)}</div>חציון היקף</div>
-        <div class="sa-stat"><div class="sv">${fmt(st.avgHeight)}</div>ממוצע גובה</div>
-        <div class="sa-stat"><div class="sv">${fmt(st.density, 3)}</div>צפיפות</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.avgGirth)}</div>${t('avg_girth')}</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.medianGirth)}</div>${t('median_girth')}</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.avgHeight)}</div>${t('avg_height')}</div>
+        <div class="sa-stat"><div class="sv">${fmt(st.density, 3)}</div>${t('avg_density')}</div>
       </div>
     </div>`;
   }).join('');
@@ -548,48 +655,49 @@ function renderSADetail() {
   const sa = DATA.superAreas.find(s => s.code === selectedSA);
   const st = computeSAStats(sa);
   el.innerHTML = `<div class="card">
-    <h5>${st.code} — ${st.name_he} — נתונים מלאים</h5>
+    <h5>${st.code} — ${st.name_he} — ${t('trees')}</h5>
     <div class="detail-grid">
-      <div class="card"><h5>עצים</h5>
-        <div class="stat-row"><span class="stat-label">במיפוי</span><span class="stat-value">${st.treeCount}</span></div>
-        <div class="stat-row"><span class="stat-label">שדרות</span><span class="stat-value">${st.avenueTrees}</span></div>
+      <div class="card"><h5>${t('tree_data')}</h5>
+        <div class="stat-row"><span class="stat-label">${t('mapped_trees')}</span><span class="stat-value">${st.treeCount}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('avenue_trees')}</span><span class="stat-value">${st.avenueTrees}</span></div>
         <div class="stat-row"><span class="stat-label">סה"כ</span><span class="stat-value">${st.totalTrees}</span></div>
       </div>
-      <div class="card"><h5>היקף</h5>
-        <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
-        <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
-        <div class="stat-row"><span class="stat-label">σ</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
-        <div class="stat-row"><span class="stat-label">טווח</span><span class="stat-value">${fmt(st.minGirth)} – ${fmt(st.maxGirth)}</span></div>
+      <div class="card"><h5>${t('girth_stats')}</h5>
+        <div class="stat-row"><span class="stat-label">${t('avg_girth')}</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('median_girth')}</span><span class="stat-value">${fmt(st.medianGirth)}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('stdev')}</span><span class="stat-value">${fmt(st.stdGirth)}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('range')}</span><span class="stat-value">${fmt(st.minGirth)} – ${fmt(st.maxGirth)}</span></div>
       </div>
-      <div class="card"><h5>גובה</h5>
-        <div class="stat-row"><span class="stat-label">ממוצע</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
-        <div class="stat-row"><span class="stat-label">חציון</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
-        <div class="stat-row"><span class="stat-label">σ</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
-        <div class="stat-row"><span class="stat-label">טווח</span><span class="stat-value">${fmt(st.minHeight)} – ${fmt(st.maxHeight)}</span></div>
+      <div class="card"><h5>${t('height_stats')}</h5>
+        <div class="stat-row"><span class="stat-label">${t('avg_height')}</span><span class="stat-value">${fmt(st.avgHeight)}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('median_girth')}</span><span class="stat-value">${fmt(st.medianHeight)}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('stdev')}</span><span class="stat-value">${fmt(st.stdHeight)}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('range')}</span><span class="stat-value">${fmt(st.minHeight)} – ${fmt(st.maxHeight)}</span></div>
       </div>
-      <div class="card"><h5>שטח ומרחב</h5>
-        <div class="stat-row"><span class="stat-label">שטח</span><span class="stat-value">${fmt(st.totalArea)} ac</span></div>
-        <div class="stat-row"><span class="stat-label">צפיפות</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
-        <div class="stat-row"><span class="stat-label">סוגים</span><span class="stat-value">${st.spaceTypes.join(', ')}</span></div>
+      <div class="card"><h5>${t('space_info')}</h5>
+        <div class="stat-row"><span class="stat-label">${t('area_acres')}</span><span class="stat-value">${fmt(st.totalArea)} ac</span></div>
+        <div class="stat-row"><span class="stat-label">${t('avg_density')}</span><span class="stat-value">${fmt(st.density, 3)}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('space_type')}</span><span class="stat-value">${st.spaceTypes.join(', ')}</span></div>
       </div>
     </div>
   </div>`;
+}
 }
 
 function updateSACharts() {
   const stats = DATA.superAreas.map(computeSAStats);
   // Comparison bar chart
   Plotly.newPlot('chartSACompare', [
-    { x: stats.map(s => s.code), y: stats.map(s => s.totalTrees), type: 'bar', name: 'עצים', marker: { color: '#16a34a' } },
-    { x: stats.map(s => s.code), y: stats.map(s => s.avgGirth), type: 'bar', name: 'ממוצע היקף', yaxis: 'y2', marker: { color: '#f59e0b' } },
-  ], Object.assign(pltLay('השוואת אזורי-על'), {
+    { x: stats.map(s => s.code), y: stats.map(s => s.totalTrees), type: 'bar', name: t('trees'), marker: { color: '#16a34a' } },
+    { x: stats.map(s => s.code), y: stats.map(s => s.avgGirth), type: 'bar', name: t('avg_girth'), yaxis: 'y2', marker: { color: '#f59e0b' } },
+  ], Object.assign(pltLay(t('super_area_comparison')), {
     barmode: 'group',
-    yaxis: { title: 'כמות עצים' },
-    yaxis2: { title: 'ממוצע היקף', overlaying: 'y', side: 'left', position: 0 },
+    yaxis: { title: t('trees') },
+    yaxis2: { title: t('avg_girth'), overlaying: 'y', side: 'left', position: 0 },
   }), pltCfg);
 
   // Radar chart (polar bar)
-  const categories = ['עצים (÷10)', 'שטח (÷100)', 'ממוצע היקף', 'חציון היקף', 'ממוצע גובה', 'צפיפות×100'];
+  const categories = [t('trees') + ' (÷10)', t('area_acres') + ' (÷100)', t('avg_girth'), t('median_girth'), t('avg_height'), t('avg_density') + '×100'];
   const radarTraces = stats.map(s => ({
     type: 'scatterpolar',
     r: [s.totalTrees / 10, s.totalArea / 100, s.avgGirth || 0, s.medianGirth || 0, (s.avgHeight || 0) / 10, s.density * 100],
@@ -597,7 +705,7 @@ function updateSACharts() {
     fill: 'toself',
     name: s.code,
   }));
-  Plotly.newPlot('chartSARadar', radarTraces, pltLay('פרופיל אזורי-על (Radar)'), pltCfg);
+  Plotly.newPlot('chartSARadar', radarTraces, pltLay(t('super_area_radar')), pltCfg);
 }
 
 /* ---------- overview charts ---------- */
@@ -606,17 +714,17 @@ function updateOverviewCharts() {
   const codes = DATA.polygons.map(p => p.polygon);
   const stats = codes.map(computePolyStats);
   Plotly.newPlot('chartOverviewBar', [
-    { x: codes, y: stats.map(s => s.treeCount), type: 'bar', name: 'עצים במיפוי', marker: { color: '#16a34a' } },
-    { x: codes, y: stats.map(s => s.avenueTrees), type: 'bar', name: 'עצי שדרה', marker: { color: '#f59e0b' } },
-  ], Object.assign(pltLay('עצים לפי פוליגון (כולל אומדן שדרות)'), { barmode: 'stack' }), pltCfg);
+    { x: codes, y: stats.map(s => s.treeCount), type: 'bar', name: t('mapped'), marker: { color: '#16a34a' } },
+    { x: codes, y: stats.map(s => s.avenueTrees), type: 'bar', name: t('estimated'), marker: { color: '#f59e0b' } },
+  ], Object.assign(pltLay(t('trees_per_polygon')), { barmode: 'stack' }), pltCfg);
 
   // Pie chart: space types
   const typeCounts = {};
-  DATA.polygons.forEach(p => { const t = p.space_type || 'אחר'; typeCounts[t] = (typeCounts[t] || 0) + 1; });
+  DATA.polygons.forEach(p => { const st = p.space_type || 'Other'; typeCounts[st] = (typeCounts[st] || 0) + 1; });
   Plotly.newPlot('chartOverviewPie', [{
     labels: Object.keys(typeCounts), values: Object.values(typeCounts),
     type: 'pie', hole: 0.4, textinfo: 'label+percent',
-  }], pltLay('סוגי שטחים'), pltCfg);
+  }], pltLay(t('space_types_dist')), pltCfg);
 }
 
 /* ---------- analytics charts ---------- */
@@ -640,27 +748,27 @@ function updateCharts() {
   const scatterTraces = Object.entries(polyGroups).map(([k, v], i) => ({
     x: v.girth, y: v.height, mode: 'markers', type: 'scatter', name: k,
     marker: { color: colors[i % colors.length], size: 7, opacity: 0.7 },
-    hovertemplate: `פוליגון: ${k}<br>היקף: %{x}<br>גובה: %{y}<extra></extra>`,
+    hovertemplate: `${t('polygon')}: ${k}<br>${t('avg_girth')}: %{x}<br>${t('avg_height')}: %{y}<extra></extra>`,
   }));
-  Plotly.newPlot('chartScatter', scatterTraces, pltLay('פיזור היקף מול גובה (לפי פוליגון)', { xaxis: { title: 'היקף' }, yaxis: { title: 'גובה' } }), pltCfg);
+  Plotly.newPlot('chartScatter', scatterTraces, pltLay(t('girth_vs_height'), { xaxis: { title: t('avg_girth') }, yaxis: { title: t('avg_height') } }), pltCfg);
 
   // Bar: tree count per polygon
   const counts = {};
   pts.forEach(t => { const k = t.polygon || 'ללא'; counts[k] = (counts[k] || 0) + 1; });
-  Plotly.newPlot('chartBars', [{ x: Object.keys(counts), y: Object.values(counts), type: 'bar', marker: { color: '#2563eb' } }], pltLay('כמות עצים לפי פוליגון'), pltCfg);
+  Plotly.newPlot('chartBars', [{ x: Object.keys(counts), y: Object.values(counts), type: 'bar', marker: { color: '#2563eb' } }], pltLay(t('trees_per_polygon')), pltCfg);
 
   // Histogram: girth
-  Plotly.newPlot('chartHist', [{ x: pts.map(t => t.girth).filter(v => v != null), type: 'histogram', marker: { color: '#0ea5e9' }, nbinsx: 30 }], pltLay('התפלגות היקפים'), pltCfg);
+  Plotly.newPlot('chartHist', [{ x: pts.map(t => t.girth).filter(v => v != null), type: 'histogram', marker: { color: '#0ea5e9' }, nbinsx: 30 }], pltLay(t('girth_distribution')), pltCfg);
 
   // Box plot by polygon
   const boxTraces = Array.from(polySet).map((code, i) => {
     const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null);
     return { y: arr, type: 'box', name: code, boxpoints: false, marker: { color: colors[i % colors.length] } };
   });
-  Plotly.newPlot('chartBox', boxTraces, pltLay('Box plot היקפים לפי פוליגון'), pltCfg);
+  Plotly.newPlot('chartBox', boxTraces, pltLay(t('girth_distribution')), pltCfg);
 
   // Histogram: heights
-  Plotly.newPlot('chartHeights', [{ x: pts.map(t => t.height).filter(v => v != null), type: 'histogram', marker: { color: '#8b5cf6' }, nbinsx: 25 }], pltLay('התפלגות גבהים'), pltCfg);
+  Plotly.newPlot('chartHeights', [{ x: pts.map(t => t.height).filter(v => v != null), type: 'histogram', marker: { color: '#8b5cf6' }, nbinsx: 25 }], pltLay(t('height_distribution')), pltCfg);
 
   // Density by polygon
   const densX = polys.map(p => p.polygon);
@@ -668,21 +776,21 @@ function updateCharts() {
     const st = computePolyStats(code);
     return st.density;
   });
-  Plotly.newPlot('chartDensity', [{ x: densX, y: densY, type: 'bar', marker: { color: '#f59e0b' } }], pltLay('צפיפות שקמים בפוליגון (כולל שדרות)'), pltCfg);
+  Plotly.newPlot('chartDensity', [{ x: densX, y: densY, type: 'bar', marker: { color: '#f59e0b' } }], pltLay(t('avg_density')), pltCfg);
 
   // Heatmap
   const heatRows = DATA.distribution;
   const xs = polys.map(p => p.polygon);
   const ys = heatRows.map(r => r.girth_range);
   const z = ys.map(y => xs.map(x => heatRows.find(r => r.girth_range === y)?.[x] || 0));
-  Plotly.newPlot('chartHeat', [{ x: xs, y: ys, z: z, type: 'heatmap', colorscale: 'YlGnBu' }], pltLay('Heatmap התפלגות היקפים × פוליגון'), pltCfg);
+  Plotly.newPlot('chartHeat', [{ x: xs, y: ys, z: z, type: 'heatmap', colorscale: 'YlGnBu' }], pltLay(t('girth_distribution')), pltCfg);
 
   // Violin plot
   const violinTraces = Array.from(polySet).map((code, i) => {
     const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null);
     return { y: arr, type: 'violin', name: code, box: { visible: true }, meanline: { visible: true }, marker: { color: colors[i % colors.length] } };
   });
-  Plotly.newPlot('chartViolin', violinTraces, pltLay('Violin plot היקפים לפי פוליגון'), pltCfg);
+  Plotly.newPlot('chartViolin', violinTraces, pltLay(t('girth_distribution')), pltCfg);
 }
 
 /* ---------- advanced analytics ---------- */
@@ -715,9 +823,9 @@ function updateAdvancedCharts() {
   });
   Plotly.newPlot('chartTreemap', [{
     type: 'treemap', labels: treemapLabels, parents: treemapParents, values: treemapValues,
-    text: treemapText, textinfo: 'label+text', hovertemplate: '%{label}<br>%{text}<br>שטח: %{value:.1f} acres<extra></extra>',
+    text: treemapText, textinfo: 'label+text', hovertemplate: '%{label}<br>%{text}<br>' + t('area_acres') + ': %{value:.1f}<extra></extra>',
     marker: { colorscale: 'Viridis' },
-  }], pltLay('Treemap — שטחים לפי אזור-על ופוליגון'), pltCfg);
+  }], pltLay(t('total_area')), pltCfg);
 
   // CDF of girth
   const girths = pts.map(t => t.girth).filter(v => v != null).sort((a, b) => a - b);
@@ -725,7 +833,7 @@ function updateAdvancedCharts() {
   Plotly.newPlot('chartCDF', [{
     x: girths, y: cdfY, type: 'scatter', mode: 'lines',
     line: { color: '#2563eb', width: 2 }, name: 'CDF',
-  }], pltLay('CDF — פונקציית ההתפלגות המצטברת של היקפים', { xaxis: { title: 'היקף' }, yaxis: { title: 'הסתברות מצטברת' } }), pltCfg);
+  }], pltLay(t('girth_distribution'), { xaxis: { title: t('avg_girth') }, yaxis: { title: 'Cumulative' } }), pltCfg);
 
   // Size class stacked bars
   const sizeClasses = [
@@ -856,18 +964,18 @@ function renderGroups() {
     const s = groupSummary(g);
     return `<div class="card">
       <h5>${s.name}</h5>
-      <div class="stat-row"><span class="stat-label">פוליגונים</span><span class="stat-value">${s.polys.join(', ')}</span></div>
-      <div class="stat-row"><span class="stat-label">עצים (מיפוי + שדרות)</span><span class="stat-value">${s.trees} + ${s.avenueTrees} = ${s.totalTrees}</span></div>
-      <div class="stat-row"><span class="stat-label">ממוצע היקף</span><span class="stat-value">${fmt(s.avgGirth)}</span></div>
-      <div class="stat-row"><span class="stat-label">חציון היקף</span><span class="stat-value">${fmt(s.medianGirth)}</span></div>
-      <div class="stat-row"><span class="stat-label">σ היקף</span><span class="stat-value">${fmt(s.stdGirth)}</span></div>
-      <div class="stat-row"><span class="stat-label">טווח היקף</span><span class="stat-value">${fmt(s.minGirth)} – ${fmt(s.maxGirth)}</span></div>
-      <div class="stat-row"><span class="stat-label">ממוצע גובה</span><span class="stat-value">${fmt(s.avgHeight)}</span></div>
-      <div class="stat-row"><span class="stat-label">חציון גובה</span><span class="stat-value">${fmt(s.medianHeight)}</span></div>
-      <div class="stat-row"><span class="stat-label">σ גובה</span><span class="stat-value">${fmt(s.stdHeight)}</span></div>
-      <div class="stat-row"><span class="stat-label">טווח גובה</span><span class="stat-value">${fmt(s.minHeight)} – ${fmt(s.maxHeight)}</span></div>
-      <div class="stat-row"><span class="stat-label">שטח</span><span class="stat-value">${fmt(s.totalArea)} acres</span></div>
-      <div class="stat-row"><span class="stat-label">צפיפות</span><span class="stat-value">${fmt(s.density, 3)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('polygons') + "</span><span class="stat-value">${s.polys.join(', ')}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('trees') + "</span><span class="stat-value">${s.trees} + ${s.avenueTrees} = ${s.totalTrees}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('avg_girth') + "</span><span class="stat-value">${fmt(s.avgGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('median_girth') + "</span><span class="stat-value">${fmt(s.medianGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('std_girth') + "</span><span class="stat-value">${fmt(s.stdGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('range') + "</span><span class="stat-value">${fmt(s.minGirth)} – ${fmt(s.maxGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('avg_height') + "</span><span class="stat-value">${fmt(s.avgHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('median_girth') + "</span><span class="stat-value">${fmt(s.medianHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('std_height') + "</span><span class="stat-value">${fmt(s.stdHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('range') + "</span><span class="stat-value">${fmt(s.minHeight)} – ${fmt(s.maxHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('area_acres') + "</span><span class="stat-value">${fmt(s.totalArea)} acres</span></div>
+      <div class="stat-row"><span class="stat-label">" + t('avg_density') + "</span><span class="stat-value">${fmt(s.density, 3)}</span></div>
     </div>`;
   }).join('');
 }
@@ -876,9 +984,9 @@ function updateGroupsChart() {
   if (!GROUPS.length) { document.getElementById('chartGroups').innerHTML = ''; return; }
   const sums = GROUPS.map(groupSummary);
   Plotly.newPlot('chartGroups', [
-    { x: sums.map(s => s.name), y: sums.map(s => s.trees), type: 'bar', name: 'עצים במיפוי' },
-    { x: sums.map(s => s.name), y: sums.map(s => s.avenueTrees), type: 'bar', name: 'עצי שדרה' },
-  ], Object.assign(pltLay('השוואת קבוצות — עצים'), { barmode: 'stack' }), pltCfg);
+    { x: sums.map(s => s.name), y: sums.map(s => s.trees), type: 'bar', name: t('mapped') },
+    { x: sums.map(s => s.name), y: sums.map(s => s.avenueTrees), type: 'bar', name: t('estimated') },
+  ], Object.assign(pltLay(t('trees_per_polygon')), { barmode: 'stack' }), pltCfg);
 }
 
 /* ---------- avenues ---------- */
@@ -895,7 +1003,7 @@ function renderAvenues() {
     </tr>`;
   }).join('');
   document.getElementById('avenueTable').innerHTML = `<table class="avenue-table">
-    <thead><tr><th>#</th><th>פוליגון</th><th>סוג</th><th>אורך</th><th>ממוצע היקף</th><th>ממוצע גובה</th><th>מרווח</th><th>אומדן</th></tr></thead>
+    <thead><tr><th>#</th><th>${t('polygon')}</th><th>${t('space_type')}</th><th>${t('line_length')}</th><th>${t('avg_girth')}</th><th>${t('avg_height')}</th><th>${t('space_type')}</th><th>${t('trees')}</th></tr></thead>
     <tbody>${rows}</tbody></table>`;
   document.querySelectorAll('.lineSpacing').forEach(inp => {
     inp.addEventListener('change', e => {
@@ -1044,29 +1152,29 @@ function runComparison() {
 
   // Comparison metrics table
   const metrics = [
-    { name: 'עצים (מיפוי)', a: a.treeCount, b: b.treeCount, higher: 'better' },
-    { name: 'עצי שדרה', a: a.avenueTrees, b: b.avenueTrees, higher: 'better' },
-    { name: 'סה"כ עצים', a: a.totalTrees, b: b.totalTrees, higher: 'better' },
-    { name: 'שטח (acres)', a: a.area, b: b.area, fmt: 2 },
-    { name: 'צפיפות (עצים/acre)', a: a.density, b: b.density, fmt: 3 },
-    { name: 'ממוצע היקף', a: a.avgGirth, b: b.avgGirth },
-    { name: 'חציון היקף', a: a.medianGirth, b: b.medianGirth },
-    { name: 'σ היקף', a: a.stdGirth, b: b.stdGirth },
-    { name: 'טווח היקף', a: a.minGirth != null && a.maxGirth != null ? `${fmt(a.minGirth)} – ${fmt(a.maxGirth)}` : '-',
+    { name: t('mapped_trees'), a: a.treeCount, b: b.treeCount, higher: 'better' },
+    { name: t('avenue_trees'), a: a.avenueTrees, b: b.avenueTrees, higher: 'better' },
+    { name: t('total_trees'), a: a.totalTrees, b: b.totalTrees, higher: 'better' },
+    { name: t('area_acres'), a: a.area, b: b.area, fmt: 2 },
+    { name: t('avg_density'), a: a.density, b: b.density, fmt: 3 },
+    { name: t('avg_girth'), a: a.avgGirth, b: b.avgGirth },
+    { name: t('median_girth'), a: a.medianGirth, b: b.medianGirth },
+    { name: t('std_girth'), a: a.stdGirth, b: b.stdGirth },
+    { name: t('range') + ' ' + t('avg_girth'), a: a.minGirth != null && a.maxGirth != null ? `${fmt(a.minGirth)} – ${fmt(a.maxGirth)}` : '-',
                           b: b.minGirth != null && b.maxGirth != null ? `${fmt(b.minGirth)} – ${fmt(b.maxGirth)}` : '-', noNum: true },
-    { name: 'ממוצע גובה', a: a.avgHeight, b: b.avgHeight },
-    { name: 'חציון גובה', a: a.medianHeight, b: b.medianHeight },
-    { name: 'σ גובה', a: a.stdHeight, b: b.stdHeight },
-    { name: 'טווח גובה', a: a.minHeight != null && a.maxHeight != null ? `${fmt(a.minHeight)} – ${fmt(a.maxHeight)}` : '-',
+    { name: t('avg_height'), a: a.avgHeight, b: b.avgHeight },
+    { name: t('median_girth') + ' ' + t('height_stats'), a: a.medianHeight, b: b.medianHeight },
+    { name: t('std_height'), a: a.stdHeight, b: b.stdHeight },
+    { name: t('range') + ' ' + t('height_stats'), a: a.minHeight != null && a.maxHeight != null ? `${fmt(a.minHeight)} – ${fmt(a.maxHeight)}` : '-',
                           b: b.minHeight != null && b.maxHeight != null ? `${fmt(b.minHeight)} – ${fmt(b.maxHeight)}` : '-', noNum: true },
-    { name: 'שדרות', a: a.avenueCount, b: b.avenueCount },
+    { name: t('avenues_tab'), a: a.avenueCount, b: b.avenueCount },
   ];
 
   let tableHtml = `<div class="cmp-summary">
-    <div class="cmp-summary-card side-a"><h5>${a.label}</h5><div class="big-num">${a.totalTrees}</div><div class="small">עצים כולל שדרות</div></div>
-    <div class="cmp-summary-card side-b"><h5>${b.label}</h5><div class="big-num">${b.totalTrees}</div><div class="small">עצים כולל שדרות</div></div>
+    <div class="cmp-summary-card side-a"><h5>${a.label}</h5><div class="big-num">${a.totalTrees}</div><div class="small">${t('total_trees')}</div></div>
+    <div class="cmp-summary-card side-b"><h5>${b.label}</h5><div class="big-num">${b.totalTrees}</div><div class="small">${t('total_trees')}</div></div>
   </div>`;
-  tableHtml += `<table class="cmp-table"><thead><tr><th>מדד</th><th class="highlight-a">${a.label}</th><th class="highlight-b">${b.label}</th><th>הפרש</th></tr></thead><tbody>`;
+  tableHtml += `<table class="cmp-table"><thead><tr><th>${t('compare')}</th><th class="highlight-a">${a.label}</th><th class="highlight-b">${b.label}</th><th>${t('range')}</th></tr></thead><tbody>`;
   metrics.forEach(m => {
     let vA, vB, delta;
     if (m.noNum) {
@@ -1093,36 +1201,36 @@ function runComparison() {
 
   // 1. Grouped bar chart — key metrics
   const barMetrics = ['totalTrees', 'avgGirth', 'medianGirth', 'stdGirth', 'avgHeight', 'density'];
-  const barNames = ['סה"כ עצים', 'ממוצע היקף', 'חציון היקף', 'σ היקף', 'ממוצע גובה', 'צפיפות'];
+  const barNames = [t('total_trees'), t('avg_girth'), t('median_girth'), t('std_girth'), t('avg_height'), t('avg_density')];
   Plotly.newPlot('cmpChartBar', [
     { x: barNames, y: barMetrics.map(k => a[k] || 0), type: 'bar', name: a.label, marker: { color: colA } },
     { x: barNames, y: barMetrics.map(k => b[k] || 0), type: 'bar', name: b.label, marker: { color: colB } },
-  ], pltLay('השוואת מדדים עיקריים', { barmode: 'group' }), pltCfg);
+  ], pltLay(t('compare'), { barmode: 'group' }), pltCfg);
 
   // 2. Radar chart — normalized comparison
   const radarKeys = ['totalTrees', 'avgGirth', 'medianGirth', 'avgHeight', 'area', 'density'];
-  const radarLabels = ['סה"כ עצים', 'ממוצע היקף', 'חציון היקף', 'ממוצע גובה', 'שטח', 'צפיפות'];
+  const radarLabels = [t('total_trees'), t('avg_girth'), t('median_girth'), t('avg_height'), t('area_acres'), t('avg_density')];
   const maxVals = radarKeys.map(k => Math.max(Math.abs(a[k] || 0), Math.abs(b[k] || 0)) || 1);
   Plotly.newPlot('cmpChartRadar', [
     { type: 'scatterpolar', r: radarKeys.map((k, i) => ((a[k] || 0) / maxVals[i]) * 100).concat([(a[radarKeys[0]] || 0) / maxVals[0] * 100]),
       theta: radarLabels.concat([radarLabels[0]]), fill: 'toself', name: a.label, line: { color: colA }, opacity: 0.7 },
     { type: 'scatterpolar', r: radarKeys.map((k, i) => ((b[k] || 0) / maxVals[i]) * 100).concat([(b[radarKeys[0]] || 0) / maxVals[0] * 100]),
       theta: radarLabels.concat([radarLabels[0]]), fill: 'toself', name: b.label, line: { color: colB }, opacity: 0.7 },
-  ], pltLay('פרופיל השוואתי (מנורמל)', { polar: { radialaxis: { visible: true, range: [0, 105] } } }), pltCfg);
+  ], pltLay(t('compare'), { polar: { radialaxis: { visible: true, range: [0, 105] } } }), pltCfg);
 
   // 3. Box plots — girth + height side by side
   Plotly.newPlot('cmpChartBox', [
-    { y: girthsA, type: 'box', name: `היקף – ${a.label}`, marker: { color: colA }, boxmean: 'sd' },
-    { y: girthsB, type: 'box', name: `היקף – ${b.label}`, marker: { color: colB }, boxmean: 'sd' },
-    { y: heightsA, type: 'box', name: `גובה – ${a.label}`, marker: { color: colA }, boxmean: 'sd', opacity: 0.6 },
-    { y: heightsB, type: 'box', name: `גובה – ${b.label}`, marker: { color: colB }, boxmean: 'sd', opacity: 0.6 },
-  ], pltLay('Box Plot — התפלגות היקף וגובה'), pltCfg);
+    { y: girthsA, type: 'box', name: t('girth_vs_height') + ' – ' + a.label, marker: { color: colA }, boxmean: 'sd' },
+    { y: girthsB, type: 'box', name: t('girth_vs_height') + ' – ' + b.label, marker: { color: colB }, boxmean: 'sd' },
+    { y: heightsA, type: 'box', name: t('height_stats') + ' – ' + a.label, marker: { color: colA }, boxmean: 'sd', opacity: 0.6 },
+    { y: heightsB, type: 'box', name: t('height_stats') + ' – ' + b.label, marker: { color: colB }, boxmean: 'sd', opacity: 0.6 },
+  ], pltLay(t('girth_distribution')), pltCfg);
 
   // 4. Overlapping histograms — girth distribution
   Plotly.newPlot('cmpChartHist', [
     { x: girthsA, type: 'histogram', name: a.label, marker: { color: colA }, opacity: 0.6, nbinsx: 20 },
     { x: girthsB, type: 'histogram', name: b.label, marker: { color: colB }, opacity: 0.6, nbinsx: 20 },
-  ], pltLay('התפלגות היקף — השוואה', { barmode: 'overlay', xaxis: { title: 'היקף' }, yaxis: { title: 'מספר עצים' } }), pltCfg);
+  ], pltLay(t('girth_distribution') + ' – ' + t('compare'), { barmode: 'overlay', xaxis: { title: t('avg_girth') }, yaxis: { title: t('trees') } }), pltCfg);
 
   // 5. Scatter plot — girth vs height for both sides
   const pairsA = ptsA.filter(t => t.girth != null && !isNaN(t.girth) && t.height != null && !isNaN(t.height));
@@ -1132,7 +1240,7 @@ function runComparison() {
       mode: 'markers', name: a.label, marker: { color: colA, size: 5, opacity: 0.5 }, type: 'scatter' },
     { x: pairsB.map(t => t.girth), y: pairsB.map(t => t.height),
       mode: 'markers', name: b.label, marker: { color: colB, size: 5, opacity: 0.5 }, type: 'scatter' },
-  ], pltLay('היקף מול גובה — השוואה', { xaxis: { title: 'היקף' }, yaxis: { title: 'גובה' } }), pltCfg);
+  ], pltLay(t('girth_vs_height') + ' – ' + t('compare'), { xaxis: { title: t('avg_girth') }, yaxis: { title: t('avg_height') } }), pltCfg);
 }
 
 function initCompareUI() {
@@ -1176,13 +1284,13 @@ function configureUpdateUI() {
   if (!btn || !note) return;
 
   if (isLocalHost) {
-    note.textContent = 'עדכון ישיר זמין רק בהרצה מקומית עם server.js וקבצי CSV.';
+    note.textContent = t('hosted_locally');
     return;
   }
 
   btn.disabled = true;
-  btn.title = 'ב-GitHub Pages אין API לעדכון אוטומטי';
-  note.textContent = 'בגרסת האתר מ-GitHub מעדכנים נתונים על ידי יצירת data.json חדש מקומית והעלאתו ל-Git.';
+  btn.title = 'GitHub Pages';
+  note.textContent = t('github_pages_note');
 }
 
 /* ---------- update from sheets ---------- */
@@ -1191,18 +1299,18 @@ async function updateFromSheets() {
   const status = document.getElementById('updateStatus');
 
   if (!isLocalHost) {
-    status.textContent = 'באתר שמוגש מ-GitHub Pages אין עדכון ישיר. יש להריץ updateFromSheets.js מקומית ולהעלות את data.json החדש.';
+    status.textContent = t('github_pages_note');
     status.style.color = 'var(--warn)';
     return;
   }
 
   btn.disabled = true;
-  status.textContent = 'טוען עדכון...';
+  status.textContent = t('updating');
   status.style.color = 'var(--warn)';
   
   try {
     const resp = await fetch('/api/update');
-    if (!resp.ok) throw new Error('שרת העדכון לא זמין');
+    if (!resp.ok) throw new Error(t('server_unavailable'));
     const result = await resp.json();
     
     if (result.success) {
@@ -1214,13 +1322,13 @@ async function updateFromSheets() {
       _saStatsCache = {};
       updateAll();
       
-      status.textContent = '✓ עודכן בהצלחה! ' + (DATA.lastUpdated ? new Date(DATA.lastUpdated).toLocaleString('he-IL') : '');
+      status.textContent = '✓ ' + t('success_update') + ' ' + (DATA.lastUpdated ? new Date(DATA.lastUpdated).toLocaleString('he-IL') : '');
       status.style.color = 'var(--accent)';
     } else {
       throw new Error(result.error || 'Update failed');
     }
   } catch (err) {
-    status.textContent = '✗ שגיאה: ' + err.message;
+    status.textContent = '✗ ' + t('error_loading') + err.message;
     status.style.color = 'var(--danger)';
     console.error(err);
   } finally {
@@ -1294,13 +1402,20 @@ function retranslateUI() {
   document.getElementById('btnClearSel').textContent = t('clear_selection');
   document.getElementById('btnExportCSV').textContent = t('export_csv');
   document.getElementById('btnUpdateSheets').textContent = t('update_data');
-  document.querySelector('.float .small.mt8').textContent = t('coordinates');
+  const coordsNote = document.querySelector('.float .small.mt8');
+  if (coordsNote) coordsNote.textContent = t('coordinates');
   // Tabs
   const tabKeyMap = ['overview', 'polygons_tab', 'super_areas_tab', 'analytics', 'advanced', 'groups', 'compare', 'avenues_tab'];
   document.querySelectorAll('.tabbtn').forEach((btn, i) => btn.textContent = t(tabKeyMap[i]));
   // KPI labels
   const kpiKeyMap = ['trees', 'polygons', 'avenues', 'avg_girth', 'avg_height', 'total_area', 'median_girth', 'super_areas', 'avg_density'];
   document.querySelectorAll('.kpi .label').forEach((el, i) => el.textContent = t(kpiKeyMap[i]));
+  // Basemap selector label
+  const basemapLabel = document.querySelector('label[for="basemapSel"]');
+  if (basemapLabel) basemapLabel.textContent = t('layers_maps');
+  // Other labels and descriptive text
+  const descOverview = document.querySelector('.tab[id="overview"] .card p');
+  if (descOverview) descOverview.textContent = t('no_data');
 }
 
 /* ---------- launch ---------- */
