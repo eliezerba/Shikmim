@@ -270,6 +270,438 @@ function fmtInt(v) { return v != null ? Math.round(v).toLocaleString('he-IL') : 
 const pltCfg = { responsive: true, displayModeBar: false };
 const pltLay = (title, extra) => Object.assign({ title, font: { family: 'Segoe UI, Arial', size: 12 }, margin: { t: 40, b: 40, l: 50, r: 20 } }, extra || {});
 
+const CHART_INFO_LABELS = {
+  he: {
+    fields: 'שדות נתונים',
+    formula: 'נוסחה / פונקציה',
+    purpose: 'מה הגרף משרת',
+    notes: 'הערות קריאה',
+  },
+  en: {
+    fields: 'Data fields',
+    formula: 'Formula / Function',
+    purpose: 'What this chart serves',
+    notes: 'Reading notes',
+  },
+};
+
+const CHART_INFO = {
+  chartScatter: {
+    title: { he: 'היקף מול גובה', en: 'Girth vs Height' },
+    fields: {
+      he: ['DATA.points.girth', 'DATA.points.height', 'DATA.points.polygon'],
+      en: ['DATA.points.girth', 'DATA.points.height', 'DATA.points.polygon'],
+    },
+    formula: {
+      he: ['תרשים פיזור (Scatter): כל עץ הוא נקודה אחת בצירים x=girth, y=height.', 'קיבוץ לפי polygon לצבע/סדרה נפרדת.'],
+      en: ['Scatter plot: each tree is one point with x=girth and y=height.', 'Grouped by polygon as separate color/trace.'],
+    },
+    purpose: {
+      he: 'מציג קשר אפשרי בין היקף לגובה ומאפשר לזהות אשכולות, חריגים והבדלים בין פוליגונים.',
+      en: 'Shows the potential relationship between girth and height and helps detect clusters, outliers, and polygon-level differences.',
+    },
+    notes: {
+      he: ['ריכוז נקודות מעיד על טיפוס עצים דומה.', 'נקודות קצה יכולות להצביע על מדידות חריגות או עצים יוצאי דופן.'],
+      en: ['Dense point clouds indicate similar tree profiles.', 'Extreme points may indicate outliers or exceptional trees.'],
+    },
+  },
+  chartBars: {
+    title: { he: 'עצים לפי פוליגון', en: 'Trees per Polygon' },
+    fields: {
+      he: ['DATA.points.polygon (ספירת עצים לפי פוליגון)'],
+      en: ['DATA.points.polygon (tree counts by polygon)'],
+    },
+    formula: {
+      he: ['counts[polygon] = מספר הרשומות בטבלת points לכל פוליגון.'],
+      en: ['counts[polygon] = number of records in points for each polygon.'],
+    },
+    purpose: {
+      he: 'השוואת היקף העצים בין פוליגונים בצורה מהירה וברורה.',
+      en: 'Compares tree volume between polygons in a quick and clear way.',
+    },
+    notes: {
+      he: ['הגרף סופר עצים ממופים בלבד בטאב זה.', 'להשוואה הכוללת אומדני שדרות השתמשו בגרפים המתאימים בסקירה/קבוצות.'],
+      en: ['In this tab, the chart counts mapped trees only.', 'For totals including avenue estimates, use the relevant overview/groups charts.'],
+    },
+  },
+  chartHist: {
+    title: { he: 'התפלגות היקף', en: 'Girth Distribution' },
+    fields: {
+      he: ['DATA.points.girth (ערכים מספריים בלבד)'],
+      en: ['DATA.points.girth (numeric values only)'],
+    },
+    formula: {
+      he: ['Histogram עם nbinsx=30: חלוקת טווח ההיקפים לדליים וספירת עצים בכל דלי.'],
+      en: ['Histogram with nbinsx=30: split girth range into bins and count trees per bin.'],
+    },
+    purpose: {
+      he: 'ממחיש את מבנה האוכלוסייה: שכיחויות, הטיה, וריבוי ערכים קיצוניים.',
+      en: 'Shows population structure: frequencies, skewness, and heavy tails/outliers.',
+    },
+    notes: {
+      he: ['שיא יחיד לרוב מצביע על טווח היקף טיפוסי.', 'התפלגות רחבה מצביעה על הטרוגניות גבוהה.'],
+      en: ['A single peak often indicates a typical girth range.', 'A wide spread indicates higher heterogeneity.'],
+    },
+  },
+  chartBox: {
+    title: { he: 'Box Plot לפי פוליגון', en: 'Box Plot by Polygon' },
+    fields: {
+      he: ['DATA.points.girth', 'DATA.points.polygon'],
+      en: ['DATA.points.girth', 'DATA.points.polygon'],
+    },
+    formula: {
+      he: ['לכל פוליגון מחושבים: חציון, רבעון ראשון/שלישי וטווח התפלגות.', 'boxpoints=false מסתיר נקודות גולמיות לשיפור קריאות.'],
+      en: ['Per polygon it computes median, quartiles (Q1/Q3), and spread.', 'boxpoints=false hides raw points for cleaner readability.'],
+    },
+    purpose: {
+      he: 'השוואה סטטיסטית בין פוליגונים תוך דגש על מרכז ופיזור.',
+      en: 'Enables statistical comparison across polygons with focus on center and spread.',
+    },
+    notes: {
+      he: ['תיבה גבוהה = שונות גבוהה בהיקפים.', 'חציון גבוה מראה פוליגון עם עצים עבים יותר בממוצע.'],
+      en: ['A taller box means larger variance in girth.', 'A higher median indicates thicker trees on average.'],
+    },
+  },
+  chartHeights: {
+    title: { he: 'התפלגות גובה', en: 'Height Distribution' },
+    fields: {
+      he: ['DATA.points.height (ערכים מספריים בלבד)'],
+      en: ['DATA.points.height (numeric values only)'],
+    },
+    formula: {
+      he: ['Histogram עם nbinsx=25 עבור גובה עצים.'],
+      en: ['Histogram with nbinsx=25 for tree heights.'],
+    },
+    purpose: {
+      he: 'מציג את מבנה התפלגות הגבהים ועוזר לזהות טווחים דומיננטיים.',
+      en: 'Displays the height distribution structure and dominant ranges.',
+    },
+    notes: {
+      he: ['מאפשר השוואה אינטואיטיבית לגרף ההיקף.', 'זנב ארוך עשוי להעיד על תתי-אוכלוסיות.'],
+      en: ['Allows intuitive comparison against girth distribution.', 'A long tail may indicate sub-populations.'],
+    },
+  },
+  chartDensity: {
+    title: { he: 'צפיפות עצים לפי פוליגון', en: 'Tree Density by Polygon' },
+    fields: {
+      he: ['computePolyStats(code).density', 'DATA.polygons.area_acres', 'DATA.points'],
+      en: ['computePolyStats(code).density', 'DATA.polygons.area_acres', 'DATA.points'],
+    },
+    formula: {
+      he: ['density = mappedTrees / area_acres (עצים ל-acre).'],
+      en: ['density = mappedTrees / area_acres (trees per acre).'],
+    },
+    purpose: {
+      he: 'מנרמל לפי שטח ומאפשר השוואה הוגנת בין פוליגונים בגדלים שונים.',
+      en: 'Normalizes by area so polygons of different sizes can be compared fairly.',
+    },
+    notes: {
+      he: ['צפיפות גבוהה אינה בהכרח כמות עצים מוחלטת גבוהה.', 'יש לפרש יחד עם שטח כולל.'],
+      en: ['High density does not necessarily mean high absolute tree count.', 'Interpret together with total area.'],
+    },
+  },
+  chartHeat: {
+    title: { he: 'Heatmap היקפים לפי פוליגון', en: 'Girth Heatmap by Polygon' },
+    fields: {
+      he: ['DATA.distribution.girth_range', 'DATA.distribution[polygon]', 'רשימת הפוליגונים המסוננים'],
+      en: ['DATA.distribution.girth_range', 'DATA.distribution[polygon]', 'filtered polygon list'],
+    },
+    formula: {
+      he: ['z[y,x] = שכיחות עצים בטווח היקף y עבור פוליגון x.'],
+      en: ['z[y,x] = frequency of trees in girth range y for polygon x.'],
+    },
+    purpose: {
+      he: 'מזהה במהירות דפוסים מטריציוניים של שכיחויות בין טווחי היקף לפוליגונים.',
+      en: 'Quickly reveals matrix-like frequency patterns across girth ranges and polygons.',
+    },
+    notes: {
+      he: ['צבע כהה יותר = שכיחות גבוהה יותר.', 'שורות מודגשות מצביעות על טווחי היקף נפוצים.'],
+      en: ['Darker color means higher frequency.', 'Dominant rows indicate common girth ranges.'],
+    },
+  },
+  chartViolin: {
+    title: { he: 'Violin לפי פוליגון', en: 'Violin by Polygon' },
+    fields: {
+      he: ['DATA.points.girth', 'DATA.points.polygon'],
+      en: ['DATA.points.girth', 'DATA.points.polygon'],
+    },
+    formula: {
+      he: ['אומדן צפיפות (KDE) לכל פוליגון + קופסת רבעונים וממוצע.'],
+      en: ['Kernel density estimate (KDE) per polygon with quartile box and meanline.'],
+    },
+    purpose: {
+      he: 'מציג לא רק מרכז ופיזור, אלא גם את צורת ההתפלגות בכל פוליגון.',
+      en: 'Shows not just center/spread but the full distribution shape per polygon.',
+    },
+    notes: {
+      he: ['צורה דו-שיאית מצביעה על שתי תתי-קבוצות אפשריות.', 'צרות/רוחב ה"כינור" מייצגים צפיפות יחסית.'],
+      en: ['A bimodal shape may indicate two sub-populations.', 'Violin width reflects relative density.'],
+    },
+  },
+  chartTreemap: {
+    title: { he: 'Treemap שטח והיררכיה', en: 'Treemap Area Hierarchy' },
+    fields: {
+      he: ['DATA.superAreas.code', 'DATA.superAreas.polygons', 'DATA.polygons.area_acres', 'computePolyStats(code).totalTrees'],
+      en: ['DATA.superAreas.code', 'DATA.superAreas.polygons', 'DATA.polygons.area_acres', 'computePolyStats(code).totalTrees'],
+    },
+    formula: {
+      he: ['ערך כל פוליגון = area_acres; היררכיה: כל השטחים → אזור-על → פוליגון.'],
+      en: ['Polygon value = area_acres; hierarchy: all areas -> super-area -> polygon.'],
+    },
+    purpose: {
+      he: 'מציג בו-זמנית מבנה היררכי והשוואת שטחים יחסיים.',
+      en: 'Shows hierarchy and relative area comparison at the same time.',
+    },
+    notes: {
+      he: ['טקסט הרחף כולל גם אומדן עצים כולל לכל פוליגון.', 'יעיל לזיהוי יחידות גדולות/קטנות במהירות.'],
+      en: ['Hover text also shows total tree estimate per polygon.', 'Useful for quickly spotting large/small units.'],
+    },
+  },
+  chartCDF: {
+    title: { he: 'CDF היקפים', en: 'Girth CDF' },
+    fields: {
+      he: ['DATA.points.girth לאחר סינון ומיון'],
+      en: ['DATA.points.girth after filtering and sorting'],
+    },
+    formula: {
+      he: ['CDF(i) = (i+1)/N עבור ערכי היקף ממוינים.'],
+      en: ['CDF(i) = (i+1)/N on sorted girth values.'],
+    },
+    purpose: {
+      he: 'מאפשר לקרוא אחוזונים וספי היקף בצורה ישירה.',
+      en: 'Lets you read percentiles and girth thresholds directly.',
+    },
+    notes: {
+      he: ['שיפוע חד = ריכוז ערכים בטווח צר.', 'שיפוע מתון = פיזור רחב יותר.'],
+      en: ['Steep slope = concentration in a narrow range.', 'Gentle slope = wider spread.'],
+    },
+  },
+  chartSizeClass: {
+    title: { he: 'מחלקות גודל לפי פוליגון', en: 'Size Classes by Polygon' },
+    fields: {
+      he: ['DATA.points.girth', 'DATA.points.polygon', 'מחלקות: 0-100, 100-200, 200-300, 300-500, 500+'],
+      en: ['DATA.points.girth', 'DATA.points.polygon', 'classes: 0-100, 100-200, 200-300, 300-500, 500+'],
+    },
+    formula: {
+      he: ['ספירה בדידתית לפי טווחי היקף, עם עמודות מוערמות לכל פוליגון.'],
+      en: ['Discrete counts by girth bands using stacked bars per polygon.'],
+    },
+    purpose: {
+      he: 'משווה מבנה גיל/גודל יחסי בין פוליגונים.',
+      en: 'Compares relative size/age structure across polygons.',
+    },
+    notes: {
+      he: ['חלק גבוה במחלקות גדולות מצביע על עצים ותיקים יותר.', 'מאפשר לזהות הבדלים גם כשהסך הכול דומה.'],
+      en: ['Higher share in large classes suggests older trees.', 'Highlights structural differences even when totals are similar.'],
+    },
+  },
+  chartLorenz: {
+    title: { he: 'Lorenz ועקומת ריכוז היקפים', en: 'Lorenz Curve of Girth Concentration' },
+    fields: {
+      he: ['DATA.points.girth (ממוינים)', 'lorenzX', 'lorenzY'],
+      en: ['DATA.points.girth (sorted)', 'lorenzX', 'lorenzY'],
+    },
+    formula: {
+      he: ['Lorenz: צבירה מצטברת של שיעור עצים מול שיעור סך ההיקפים.', 'Gini = 1 - 2 * שטח מתחת לעקומת Lorenz.'],
+      en: ['Lorenz: cumulative share of trees vs cumulative share of total girth.', 'Gini = 1 - 2 * area under the Lorenz curve.'],
+    },
+    purpose: {
+      he: 'מודד אי-שוויון בריכוז היקפים בין עצים.',
+      en: 'Measures inequality in girth concentration among trees.',
+    },
+    notes: {
+      he: ['ככל שהעקומה רחוקה מקו השוויון, האי-שוויון גבוה יותר.', 'Gini קרוב ל-0 = אחידות יחסית; קרוב ל-1 = ריכוז גבוה.'],
+      en: ['The farther from the equality line, the higher the inequality.', 'Gini near 0 = more equal; near 1 = highly concentrated.'],
+    },
+  },
+  chartSpaceType: {
+    title: { he: 'עצים לפי סוג שטח', en: 'Trees by Space Type' },
+    fields: {
+      he: ['DATA.polygons.space_type', 'computePolyStats(polygon).totalTrees'],
+      en: ['DATA.polygons.space_type', 'computePolyStats(polygon).totalTrees'],
+    },
+    formula: {
+      he: ['סכימת totalTrees לכל קטגוריית space_type והצגה כתרשים עוגה.'],
+      en: ['Aggregate totalTrees by space_type and render as a pie chart.'],
+    },
+    purpose: {
+      he: 'מראה את חלוקת העומס הבוטני בין סוגי השטח.',
+      en: 'Shows how tree load is distributed across land-use categories.',
+    },
+    notes: {
+      he: ['יעיל להצגת תרומת קטגוריות יחסית.', 'אינו מייצג צפיפות אלא סכום עצים.'],
+      en: ['Useful for communicating relative category contribution.', 'Represents totals, not density.'],
+    },
+  },
+  chartCorrelation: {
+    title: { he: 'מתאם ממוצע היקף מול צפיפות', en: 'Correlation: Avg Girth vs Density' },
+    fields: {
+      he: ['polyStats.avgGirth', 'polyStats.density', 'polyStats.totalTrees', 'polyStats.area'],
+      en: ['polyStats.avgGirth', 'polyStats.density', 'polyStats.totalTrees', 'polyStats.area'],
+    },
+    formula: {
+      he: ['x=avgGirth, y=density, גודל בועה ≈ sqrt(totalTrees)*3, צבע=area.'],
+      en: ['x=avgGirth, y=density, bubble size ~ sqrt(totalTrees)*3, color=area.'],
+    },
+    purpose: {
+      he: 'בודק קשר בין עובי ממוצע לדחיסות, תוך קידוד ממד גודל נוסף.',
+      en: 'Explores relationship between average thickness and crowding with extra size encoding.',
+    },
+    notes: {
+      he: ['בועות גדולות מייצגות פוליגונים עם יותר עצים.', 'צבע מאפשר לזהות האם שטח מסביר חלק מהקשר.'],
+      en: ['Larger bubbles represent polygons with more trees.', 'Color helps assess whether area explains part of the relationship.'],
+    },
+  },
+  chartSpatialDensity: {
+    title: { he: 'מפת חום מרחבית של עצים', en: 'Spatial Tree Density Heatmap' },
+    fields: {
+      he: ['DATA.points.latlon[1] (קו אורך)', 'DATA.points.latlon[0] (קו רוחב)'],
+      en: ['DATA.points.latlon[1] (longitude)', 'DATA.points.latlon[0] (latitude)'],
+    },
+    formula: {
+      he: ['Histogram2D עם nbinsx=40 ו-nbinsy=40 להצגת צפיפות מיקום.'],
+      en: ['2D histogram with nbinsx=40 and nbinsy=40 for spatial density.'],
+    },
+    purpose: {
+      he: 'מזהה מוקדי ריכוז מרחביים ואזורים דלילים.',
+      en: 'Identifies spatial hotspots and sparse regions.',
+    },
+    notes: {
+      he: ['מתאים לזיהוי שכנות מרחבית.', 'חשוב לפרש יחד עם גבולות פוליגונים במפה.'],
+      en: ['Useful for spotting spatial neighborhood patterns.', 'Best interpreted together with polygon boundaries on the map.'],
+    },
+  },
+  chartGirthVsArea: {
+    title: { he: 'שטח מול ממוצע היקף', en: 'Area vs Avg Girth' },
+    fields: {
+      he: ['polyStats.area', 'polyStats.avgGirth', 'polyStats.totalTrees'],
+      en: ['polyStats.area', 'polyStats.avgGirth', 'polyStats.totalTrees'],
+    },
+    formula: {
+      he: ['x=area, y=avgGirth, גודל בועה=פונקציה של totalTrees.'],
+      en: ['x=area, y=avgGirth, bubble size as a function of totalTrees.'],
+    },
+    purpose: {
+      he: 'בודק האם יחידות שטח גדולות קשורות לעובי ממוצע אחר.',
+      en: 'Checks whether larger land units correlate with different average girth.',
+    },
+    notes: {
+      he: ['מתאים לזיהוי מגמות סקיילינג.', 'חריגים יכולים לסמן מדיניות תחזוקה ייחודית.'],
+      en: ['Useful for scaling trend detection.', 'Outliers may indicate unique management conditions.'],
+    },
+  },
+  chartPolygonProfile: {
+    title: { he: 'פרופיל פוליגונים סטטיסטי', en: 'Statistical Polygon Profile' },
+    fields: {
+      he: ['polyStats.avgGirth', 'polyStats.medianGirth', 'polyStats.stdGirth', 'polyStats.avgHeight'],
+      en: ['polyStats.avgGirth', 'polyStats.medianGirth', 'polyStats.stdGirth', 'polyStats.avgHeight'],
+    },
+    formula: {
+      he: ['עמודות מקובצות למדדים מרכזיים לכל פוליגון; avgHeight מוצג בסקייל ÷10 לצורך השוואה חזותית.'],
+      en: ['Grouped bars for key metrics per polygon; avgHeight is scaled by /10 for visual comparability.'],
+    },
+    purpose: {
+      he: 'מסכם מספר מדדים בתצוגה אחת להשוואה רב-ממדית מהירה.',
+      en: 'Summarizes multiple metrics in one view for quick multi-dimensional comparison.',
+    },
+    notes: {
+      he: ['שימושי למצגות והסבר למקבלי החלטות.', 'יש לזכור שהמדד של גובה הוקטן לצורך קנה מידה.'],
+      en: ['Useful for presentations and decision-maker briefings.', 'Remember height is scaled down for chart readability.'],
+    },
+  },
+};
+
+function listToHtml(items) {
+  return `<ul>${items.map(x => `<li>${x}</li>`).join('')}</ul>`;
+}
+
+function chartInfoHtml(chartId) {
+  const cfg = CHART_INFO[chartId];
+  if (!cfg) return '';
+  const labels = CHART_INFO_LABELS[LANG] || CHART_INFO_LABELS.he;
+  return `
+    <div class="chart-info-section">
+      <h4>${labels.fields}</h4>
+      ${listToHtml(cfg.fields[LANG] || cfg.fields.he)}
+    </div>
+    <div class="chart-info-section">
+      <h4>${labels.formula}</h4>
+      ${listToHtml(cfg.formula[LANG] || cfg.formula.he)}
+    </div>
+    <div class="chart-info-section">
+      <h4>${labels.purpose}</h4>
+      <p>${cfg.purpose[LANG] || cfg.purpose.he}</p>
+    </div>
+    <div class="chart-info-section">
+      <h4>${labels.notes}</h4>
+      ${listToHtml(cfg.notes[LANG] || cfg.notes.he)}
+    </div>
+  `;
+}
+
+function ensureChartInfoModal() {
+  if (document.getElementById('chartInfoModal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'chartInfoModal';
+  modal.className = 'chart-info-modal';
+  modal.innerHTML = `
+    <div class="chart-info-backdrop" data-close-info="1"></div>
+    <div class="chart-info-dialog" role="dialog" aria-modal="true" aria-labelledby="chartInfoTitle">
+      <button type="button" class="chart-info-close" id="chartInfoClose" aria-label="Close">×</button>
+      <h3 id="chartInfoTitle"></h3>
+      <div id="chartInfoBody"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => {
+    if (e.target && e.target.dataset && e.target.dataset.closeInfo === '1') {
+      modal.classList.remove('open');
+    }
+  });
+  const closeBtn = document.getElementById('chartInfoClose');
+  if (closeBtn) closeBtn.addEventListener('click', () => modal.classList.remove('open'));
+}
+
+function openChartInfo(chartId) {
+  const cfg = CHART_INFO[chartId];
+  if (!cfg) return;
+  ensureChartInfoModal();
+  const modal = document.getElementById('chartInfoModal');
+  const titleEl = document.getElementById('chartInfoTitle');
+  const bodyEl = document.getElementById('chartInfoBody');
+  if (!modal || !titleEl || !bodyEl) return;
+  titleEl.textContent = cfg.title[LANG] || cfg.title.he;
+  bodyEl.innerHTML = chartInfoHtml(chartId);
+  modal.classList.add('open');
+}
+
+function ensureChartHeaders(chartIds) {
+  chartIds.forEach(chartId => {
+    const chartEl = document.getElementById(chartId);
+    const cfg = CHART_INFO[chartId];
+    if (!chartEl || !cfg) return;
+
+    let row = chartEl.previousElementSibling;
+    if (!row || !row.classList.contains('chart-title-row') || row.dataset.chartId !== chartId) {
+      row = document.createElement('div');
+      row.className = 'chart-title-row';
+      row.dataset.chartId = chartId;
+      row.innerHTML = `
+        <span class="chart-title-text"></span>
+        <button type="button" class="chart-info-btn" aria-label="Chart info">i</button>
+      `;
+      chartEl.parentNode.insertBefore(row, chartEl);
+      const infoBtn = row.querySelector('.chart-info-btn');
+      if (infoBtn) infoBtn.addEventListener('click', () => openChartInfo(chartId));
+    }
+
+    const titleEl = row.querySelector('.chart-title-text');
+    const infoBtn = row.querySelector('.chart-info-btn');
+    if (titleEl) titleEl.textContent = cfg.title[LANG] || cfg.title.he;
+    if (infoBtn) infoBtn.setAttribute('aria-label', LANG === 'he' ? 'הסבר על הגרף' : 'Chart explanation');
+  });
+}
+
 /* ---------- data loading ---------- */
 async function loadData() {
   try {
@@ -596,7 +1028,7 @@ function updateSelectionDetail() {
         </div>
       </div>`;
   } else {
-    el.innerHTML = '<div class="card small">" + t('no_data') + "</div>';
+    el.innerHTML = `<div class="card small">${t('no_data')}</div>`;
   }
 }
 
@@ -682,7 +1114,6 @@ function renderSADetail() {
     </div>
   </div>`;
 }
-}
 
 function updateSACharts() {
   const stats = DATA.superAreas.map(computeSAStats);
@@ -729,6 +1160,7 @@ function updateOverviewCharts() {
 
 /* ---------- analytics charts ---------- */
 function updateCharts() {
+  ensureChartHeaders(['chartScatter', 'chartBars', 'chartHist', 'chartBox', 'chartHeights', 'chartDensity', 'chartHeat', 'chartViolin']);
   const polys = filteredPolygons();
   const polySet = new Set(polys.map(p => p.polygon));
   const activePoly = selectedPolygon ? [selectedPolygon] : (selectedSA ? DATA.superAreas.find(s => s.code === selectedSA)?.polygons || [] : []);
@@ -750,25 +1182,25 @@ function updateCharts() {
     marker: { color: colors[i % colors.length], size: 7, opacity: 0.7 },
     hovertemplate: `${t('polygon')}: ${k}<br>${t('avg_girth')}: %{x}<br>${t('avg_height')}: %{y}<extra></extra>`,
   }));
-  Plotly.newPlot('chartScatter', scatterTraces, pltLay(t('girth_vs_height'), { xaxis: { title: t('avg_girth') }, yaxis: { title: t('avg_height') } }), pltCfg);
+  Plotly.newPlot('chartScatter', scatterTraces, pltLay('', { xaxis: { title: t('avg_girth') }, yaxis: { title: t('avg_height') } }), pltCfg);
 
   // Bar: tree count per polygon
   const counts = {};
   pts.forEach(t => { const k = t.polygon || 'ללא'; counts[k] = (counts[k] || 0) + 1; });
-  Plotly.newPlot('chartBars', [{ x: Object.keys(counts), y: Object.values(counts), type: 'bar', marker: { color: '#2563eb' } }], pltLay(t('trees_per_polygon')), pltCfg);
+  Plotly.newPlot('chartBars', [{ x: Object.keys(counts), y: Object.values(counts), type: 'bar', marker: { color: '#2563eb' } }], pltLay(''), pltCfg);
 
   // Histogram: girth
-  Plotly.newPlot('chartHist', [{ x: pts.map(t => t.girth).filter(v => v != null), type: 'histogram', marker: { color: '#0ea5e9' }, nbinsx: 30 }], pltLay(t('girth_distribution')), pltCfg);
+  Plotly.newPlot('chartHist', [{ x: pts.map(t => t.girth).filter(v => v != null), type: 'histogram', marker: { color: '#0ea5e9' }, nbinsx: 30 }], pltLay(''), pltCfg);
 
   // Box plot by polygon
   const boxTraces = Array.from(polySet).map((code, i) => {
     const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null);
     return { y: arr, type: 'box', name: code, boxpoints: false, marker: { color: colors[i % colors.length] } };
   });
-  Plotly.newPlot('chartBox', boxTraces, pltLay(t('girth_distribution')), pltCfg);
+  Plotly.newPlot('chartBox', boxTraces, pltLay(''), pltCfg);
 
   // Histogram: heights
-  Plotly.newPlot('chartHeights', [{ x: pts.map(t => t.height).filter(v => v != null), type: 'histogram', marker: { color: '#8b5cf6' }, nbinsx: 25 }], pltLay(t('height_distribution')), pltCfg);
+  Plotly.newPlot('chartHeights', [{ x: pts.map(t => t.height).filter(v => v != null), type: 'histogram', marker: { color: '#8b5cf6' }, nbinsx: 25 }], pltLay(''), pltCfg);
 
   // Density by polygon
   const densX = polys.map(p => p.polygon);
@@ -776,25 +1208,26 @@ function updateCharts() {
     const st = computePolyStats(code);
     return st.density;
   });
-  Plotly.newPlot('chartDensity', [{ x: densX, y: densY, type: 'bar', marker: { color: '#f59e0b' } }], pltLay(t('avg_density')), pltCfg);
+  Plotly.newPlot('chartDensity', [{ x: densX, y: densY, type: 'bar', marker: { color: '#f59e0b' } }], pltLay(''), pltCfg);
 
   // Heatmap
   const heatRows = DATA.distribution;
   const xs = polys.map(p => p.polygon);
   const ys = heatRows.map(r => r.girth_range);
   const z = ys.map(y => xs.map(x => heatRows.find(r => r.girth_range === y)?.[x] || 0));
-  Plotly.newPlot('chartHeat', [{ x: xs, y: ys, z: z, type: 'heatmap', colorscale: 'YlGnBu' }], pltLay(t('girth_distribution')), pltCfg);
+  Plotly.newPlot('chartHeat', [{ x: xs, y: ys, z: z, type: 'heatmap', colorscale: 'YlGnBu' }], pltLay(''), pltCfg);
 
   // Violin plot
   const violinTraces = Array.from(polySet).map((code, i) => {
     const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null);
     return { y: arr, type: 'violin', name: code, box: { visible: true }, meanline: { visible: true }, marker: { color: colors[i % colors.length] } };
   });
-  Plotly.newPlot('chartViolin', violinTraces, pltLay(t('girth_distribution')), pltCfg);
+  Plotly.newPlot('chartViolin', violinTraces, pltLay(''), pltCfg);
 }
 
 /* ---------- advanced analytics ---------- */
 function updateAdvancedCharts() {
+  ensureChartHeaders(['chartTreemap', 'chartCDF', 'chartSizeClass', 'chartLorenz', 'chartSpaceType', 'chartCorrelation', 'chartSpatialDensity', 'chartGirthVsArea', 'chartPolygonProfile']);
   const polys = filteredPolygons();
   const activePoly = selectedPolygon ? [selectedPolygon] : (selectedSA ? DATA.superAreas.find(s => s.code === selectedSA)?.polygons || [] : []);
   const pts = activePoly.length
@@ -825,7 +1258,7 @@ function updateAdvancedCharts() {
     type: 'treemap', labels: treemapLabels, parents: treemapParents, values: treemapValues,
     text: treemapText, textinfo: 'label+text', hovertemplate: '%{label}<br>%{text}<br>' + t('area_acres') + ': %{value:.1f}<extra></extra>',
     marker: { colorscale: 'Viridis' },
-  }], pltLay(t('total_area')), pltCfg);
+  }], pltLay(''), pltCfg);
 
   // CDF of girth
   const girths = pts.map(t => t.girth).filter(v => v != null).sort((a, b) => a - b);
@@ -833,7 +1266,7 @@ function updateAdvancedCharts() {
   Plotly.newPlot('chartCDF', [{
     x: girths, y: cdfY, type: 'scatter', mode: 'lines',
     line: { color: '#2563eb', width: 2 }, name: 'CDF',
-  }], pltLay(t('girth_distribution'), { xaxis: { title: t('avg_girth') }, yaxis: { title: 'Cumulative' } }), pltCfg);
+  }], pltLay('', { xaxis: { title: t('avg_girth') }, yaxis: { title: 'Cumulative' } }), pltCfg);
 
   // Size class stacked bars
   const sizeClasses = [
@@ -849,7 +1282,7 @@ function updateAdvancedCharts() {
     y: codes.map(code => DATA.points.filter(t => t.polygon === code && t.girth != null && t.girth >= sc.min && t.girth < sc.max).length),
     type: 'bar', name: sc.label,
   }));
-  Plotly.newPlot('chartSizeClass', sizeTraces, Object.assign(pltLay('מחלקות גודל (היקף) לפי פוליגון'), { barmode: 'stack' }), pltCfg);
+  Plotly.newPlot('chartSizeClass', sizeTraces, Object.assign(pltLay(''), { barmode: 'stack' }), pltCfg);
 
   // Lorenz curve (girth concentration)
   if (girths.length > 1) {
@@ -867,7 +1300,7 @@ function updateAdvancedCharts() {
     Plotly.newPlot('chartLorenz', [
       { x: lorenzX, y: lorenzY, type: 'scatter', mode: 'lines', name: 'Lorenz', line: { color: '#dc2626', width: 2 } },
       { x: [0, 1], y: [0, 1], type: 'scatter', mode: 'lines', name: 'שוויון מלא', line: { color: '#94a3b8', dash: 'dash' } },
-    ], pltLay(`Lorenz Curve — ריכוז היקפים (Gini = ${gini.toFixed(3)})`, { xaxis: { title: 'חלק מצטבר של אוכלוסיית העצים' }, yaxis: { title: 'חלק מצטבר של סך ההיקפים' } }), pltCfg);
+    ], pltLay('', { xaxis: { title: 'חלק מצטבר של אוכלוסיית העצים' }, yaxis: { title: 'חלק מצטבר של סך ההיקפים' } }), pltCfg);
   }
 
   // Space type pie
@@ -880,7 +1313,7 @@ function updateAdvancedCharts() {
   Plotly.newPlot('chartSpaceType', [{
     labels: Object.keys(typeTrees), values: Object.values(typeTrees),
     type: 'pie', hole: 0.35, textinfo: 'label+percent+value',
-  }], pltLay('עצים לפי סוג שטח'), pltCfg);
+  }], pltLay(''), pltCfg);
 
   // Correlation scatter: avg girth vs density per polygon
   Plotly.newPlot('chartCorrelation', [{
@@ -889,13 +1322,13 @@ function updateAdvancedCharts() {
     marker: { size: polyStats.map(s => Math.sqrt(s.totalTrees) * 3), color: polyStats.map(s => s.area), colorscale: 'Viridis', showscale: true, colorbar: { title: 'שטח' } },
     textposition: 'top center',
     hovertemplate: 'פוליגון: %{text}<br>ממוצע היקף: %{x:.1f}<br>צפיפות: %{y:.3f}<extra></extra>',
-  }], pltLay('מתאם: ממוצע היקף מול צפיפות (גודל עיגול = שורש כמות עצים)', { xaxis: { title: 'ממוצע היקף' }, yaxis: { title: 'צפיפות (עצים/acre)' } }), pltCfg);
+  }], pltLay('', { xaxis: { title: 'ממוצע היקף' }, yaxis: { title: 'צפיפות (עצים/acre)' } }), pltCfg);
 
   // Spatial density heatmap (tree locations)
   Plotly.newPlot('chartSpatialDensity', [{
     x: pts.map(t => t.latlon[1]), y: pts.map(t => t.latlon[0]),
     type: 'histogram2d', colorscale: 'Hot', nbinsx: 40, nbinsy: 40, reversescale: true,
-  }], pltLay('מפת חום מרחבית — צפיפות עצים', { xaxis: { title: 'קו אורך' }, yaxis: { title: 'קו רוחב' } }), pltCfg);
+  }], pltLay('', { xaxis: { title: 'קו אורך' }, yaxis: { title: 'קו רוחב' } }), pltCfg);
 
   // Girth vs Area bubble
   Plotly.newPlot('chartGirthVsArea', [{
@@ -904,7 +1337,7 @@ function updateAdvancedCharts() {
     mode: 'markers+text', type: 'scatter',
     marker: { size: polyStats.map(s => Math.max(s.totalTrees / 5, 8)), color: '#059669', opacity: 0.7 },
     textposition: 'top center',
-  }], pltLay('שטח מול ממוצע היקף', { xaxis: { title: 'שטח (acres)' }, yaxis: { title: 'ממוצע היקף' } }), pltCfg);
+  }], pltLay('', { xaxis: { title: 'שטח (acres)' }, yaxis: { title: 'ממוצע היקף' } }), pltCfg);
 
   // Polygon profile: grouped bar - multiple metrics side by side
   const profileCodes = polys.map(p => p.polygon);
@@ -913,7 +1346,7 @@ function updateAdvancedCharts() {
     { x: profileCodes, y: polyStats.map(s => s.medianGirth || 0), type: 'bar', name: 'חציון היקף', marker: { color: '#06b6d4' } },
     { x: profileCodes, y: polyStats.map(s => s.stdGirth || 0), type: 'bar', name: 'σ היקף', marker: { color: '#f59e0b' } },
     { x: profileCodes, y: polyStats.map(s => (s.avgHeight || 0) / 10), type: 'bar', name: 'ממוצע גובה ÷10', marker: { color: '#8b5cf6' } },
-  ], Object.assign(pltLay('פרופיל פוליגונים — מדדים סטטיסטיים'), { barmode: 'group' }), pltCfg);
+  ], Object.assign(pltLay(''), { barmode: 'group' }), pltCfg);
 }
 
 /* ---------- groups ---------- */

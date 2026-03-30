@@ -75,6 +75,21 @@ main{display:grid;grid-template-columns:1fr 460px;height:calc(100vh - 56px);over
 .chart{height:300px;margin-top:10px}
 .chartTall{height:360px;margin-top:10px}
 .chartWide{height:420px;margin-top:10px}
+.chart-title-row{display:flex;align-items:center;gap:8px;margin-top:12px;margin-bottom:2px}
+.chart-title-text{font-size:13px;font-weight:700;color:var(--primary)}
+.chart-info-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid var(--primary-light);background:#eff6ff;color:var(--primary);font-size:12px;font-weight:700;line-height:1;cursor:pointer;transition:all .15s}
+.chart-info-btn:hover{background:var(--primary);color:#fff}
+
+.chart-info-modal{position:fixed;inset:0;display:none;z-index:2100}
+.chart-info-modal.open{display:block}
+.chart-info-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.45)}
+.chart-info-dialog{position:relative;max-width:760px;max-height:85vh;overflow:auto;margin:6vh auto 0;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 45px rgba(0,0,0,.22);padding:18px}
+.chart-info-close{position:absolute;top:8px;left:8px;width:30px;height:30px;border:none;border-radius:8px;background:#e2e8f0;color:#0f172a;font-size:20px;line-height:1;cursor:pointer}
+.chart-info-dialog h3{font-size:18px;color:var(--primary);margin:0 32px 10px 0}
+.chart-info-section{margin-bottom:10px}
+.chart-info-section h4{font-size:13px;color:#1e3a8a;margin:0 0 6px}
+.chart-info-section p{margin:0;color:var(--text);line-height:1.45}
+.chart-info-section ul{margin:0;padding-inline-start:18px;color:var(--text);line-height:1.45}
 
 /* === Groups === */
 .groupCard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-top:8px}
@@ -133,4 +148,5 @@ main{display:grid;grid-template-columns:1fr 460px;height:calc(100vh - 56px);over
   main{grid-template-columns:1fr;grid-template-rows:50vh 1fr}
   .float{width:220px;padding:10px}
   .kpis{grid-template-columns:repeat(2,1fr)}
+  .chart-info-dialog{margin:3vh 10px 0;max-height:90vh}
 }
