@@ -675,30 +675,33 @@ function openChartInfo(chartId) {
   modal.classList.add('open');
 }
 
-function ensureChartHeaders(chartIds) {
-  chartIds.forEach(chartId => {
+const ALL_CHART_IDS = [
+  'chartScatter','chartBars','chartHist','chartBox','chartHeights','chartDensity','chartHeat','chartViolin',
+  'chartTreemap','chartCDF','chartSizeClass','chartLorenz','chartSpaceType','chartCorrelation','chartSpatialDensity','chartGirthVsArea','chartPolygonProfile',
+];
+
+function initChartHeaders() {
+  ALL_CHART_IDS.forEach(chartId => {
     const chartEl = document.getElementById(chartId);
     const cfg = CHART_INFO[chartId];
     if (!chartEl || !cfg) return;
+    const row = document.createElement('div');
+    row.className = 'chart-title-row';
+    row.dataset.chartId = chartId;
+    row.innerHTML = `<span class="chart-title-text">${cfg.title[LANG] || cfg.title.he}</span><button type="button" class="chart-info-btn" title="${LANG === 'he' ? 'הסבר על הגרף' : 'Chart explanation'}">i</button>`;
+    chartEl.parentNode.insertBefore(row, chartEl);
+    row.querySelector('.chart-info-btn').addEventListener('click', () => openChartInfo(chartId));
+  });
+}
 
-    let row = chartEl.previousElementSibling;
-    if (!row || !row.classList.contains('chart-title-row') || row.dataset.chartId !== chartId) {
-      row = document.createElement('div');
-      row.className = 'chart-title-row';
-      row.dataset.chartId = chartId;
-      row.innerHTML = `
-        <span class="chart-title-text"></span>
-        <button type="button" class="chart-info-btn" aria-label="Chart info">i</button>
-      `;
-      chartEl.parentNode.insertBefore(row, chartEl);
-      const infoBtn = row.querySelector('.chart-info-btn');
-      if (infoBtn) infoBtn.addEventListener('click', () => openChartInfo(chartId));
-    }
-
+function refreshChartTitles() {
+  document.querySelectorAll('.chart-title-row').forEach(row => {
+    const cfg = CHART_INFO[row.dataset.chartId];
+    if (!cfg) return;
     const titleEl = row.querySelector('.chart-title-text');
-    const infoBtn = row.querySelector('.chart-info-btn');
+    const btn = row.querySelector('.chart-info-btn');
     if (titleEl) titleEl.textContent = cfg.title[LANG] || cfg.title.he;
-    if (infoBtn) infoBtn.setAttribute('aria-label', LANG === 'he' ? 'הסבר על הגרף' : 'Chart explanation');
+    if (btn) btn.title = LANG === 'he' ? 'הסבר על הגרף' : 'Chart explanation';
   });
 }
 
@@ -1160,7 +1163,6 @@ function updateOverviewCharts() {
 
 /* ---------- analytics charts ---------- */
 function updateCharts() {
-  ensureChartHeaders(['chartScatter', 'chartBars', 'chartHist', 'chartBox', 'chartHeights', 'chartDensity', 'chartHeat', 'chartViolin']);
   const polys = filteredPolygons();
   const polySet = new Set(polys.map(p => p.polygon));
   const activePoly = selectedPolygon ? [selectedPolygon] : (selectedSA ? DATA.superAreas.find(s => s.code === selectedSA)?.polygons || [] : []);
@@ -1227,7 +1229,6 @@ function updateCharts() {
 
 /* ---------- advanced analytics ---------- */
 function updateAdvancedCharts() {
-  ensureChartHeaders(['chartTreemap', 'chartCDF', 'chartSizeClass', 'chartLorenz', 'chartSpaceType', 'chartCorrelation', 'chartSpatialDensity', 'chartGirthVsArea', 'chartPolygonProfile']);
   const polys = filteredPolygons();
   const activePoly = selectedPolygon ? [selectedPolygon] : (selectedSA ? DATA.superAreas.find(s => s.code === selectedSA)?.polygons || [] : []);
   const pts = activePoly.length
@@ -1235,30 +1236,38 @@ function updateAdvancedCharts() {
     : filteredPoints(polys);
   const polyStats = DATA.polygons.map(p => computePolyStats(p.polygon));
 
-  // Treemap: area proportional
-  const treemapLabels = ['כל השטחים'];
-  const treemapParents = [''];
-  const treemapValues = [0];
-  const treemapText = [''];
+  // Treemap: area proportional — branchvalues:'remainder' is most reliable; parent values=0
+  const tmLabels  = ['כל השטחים'];
+  const tmParents = [''];
+  const tmValues  = [0];
+  const tmCustom  = [LANG === 'he' ? 'כל הפוליגונים' : 'All polygons'];
+
   DATA.superAreas.forEach(sa => {
-    treemapLabels.push(sa.code);
-    treemapParents.push('כל השטחים');
-    treemapValues.push(0);
-    treemapText.push(`${sa.name_he || ''}`);
+    tmLabels.push(sa.code);
+    tmParents.push('כל השטחים');
+    tmValues.push(0);
+    tmCustom.push(sa.name_he || sa.code);
     sa.polygons.forEach(code => {
       const p = DATA.polygons.find(x => x.polygon === code);
-      treemapLabels.push(code);
-      treemapParents.push(sa.code);
-      treemapValues.push(p?.area_acres || 1);
       const st = computePolyStats(code);
-      treemapText.push(`${p?.space_name_he || ''}<br>${st.totalTrees} עצים`);
+      tmLabels.push(code);
+      tmParents.push(sa.code);
+      tmValues.push(parseFloat((p?.area_acres || 1).toFixed(4)));
+      tmCustom.push(`${p?.space_name_he || ''} | ${st.totalTrees} ${t('trees')}`);
     });
   });
+
   Plotly.newPlot('chartTreemap', [{
-    type: 'treemap', labels: treemapLabels, parents: treemapParents, values: treemapValues,
-    text: treemapText, textinfo: 'label+text', hovertemplate: '%{label}<br>%{text}<br>' + t('area_acres') + ': %{value:.1f}<extra></extra>',
-    marker: { colorscale: 'Viridis' },
-  }], pltLay(''), pltCfg);
+    type: 'treemap',
+    labels: tmLabels,
+    parents: tmParents,
+    values: tmValues,
+    customdata: tmCustom,
+    textinfo: 'label',
+    hovertemplate: '<b>%{label}</b><br>%{customdata}<br>' + t('area_acres') + ': %{value:.2f}<extra></extra>',
+    branchvalues: 'remainder',
+    tiling: { packing: 'squarify' },
+  }], Object.assign(pltLay(''), { margin: { t: 10, b: 10, l: 10, r: 10 } }), pltCfg);
 
   // CDF of girth
   const girths = pts.map(t => t.girth).filter(v => v != null).sort((a, b) => a - b);
@@ -1776,6 +1785,7 @@ function init() {
   initGroupsUI();
   initCompareUI();
   configureUpdateUI();
+  initChartHeaders();
   renderAvenues();
   updateAll();
   fitToData();
@@ -1790,9 +1800,13 @@ function init() {
     btn.classList.add('active');
     document.getElementById(btn.dataset.tab).classList.add('active');
     // Re-render charts when tab becomes visible (Plotly needs visible containers)
+    const tabId = btn.dataset.tab;
     setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
-    }, 50);
+      if (tabId === 'advanced') updateAdvancedCharts();
+      if (tabId === 'analytics') updateCharts();
+      if (tabId === 'superareas') updateSACharts();
+    }, 60);
   });
 
   // Map controls
@@ -1849,6 +1863,8 @@ function retranslateUI() {
   // Other labels and descriptive text
   const descOverview = document.querySelector('.tab[id="overview"] .card p');
   if (descOverview) descOverview.textContent = t('no_data');
+  // Chart titles and info buttons
+  refreshChartTitles();
 }
 
 /* ---------- launch ---------- */
