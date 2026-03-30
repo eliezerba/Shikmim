@@ -1407,18 +1407,18 @@ function renderGroups() {
     const s = groupSummary(g);
     return `<div class="card">
       <h5>${s.name}</h5>
-      <div class="stat-row"><span class="stat-label">" + t('polygons') + "</span><span class="stat-value">${s.polys.join(', ')}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('trees') + "</span><span class="stat-value">${s.trees} + ${s.avenueTrees} = ${s.totalTrees}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('avg_girth') + "</span><span class="stat-value">${fmt(s.avgGirth)}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('median_girth') + "</span><span class="stat-value">${fmt(s.medianGirth)}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('std_girth') + "</span><span class="stat-value">${fmt(s.stdGirth)}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('range') + "</span><span class="stat-value">${fmt(s.minGirth)} – ${fmt(s.maxGirth)}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('avg_height') + "</span><span class="stat-value">${fmt(s.avgHeight)}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('median_girth') + "</span><span class="stat-value">${fmt(s.medianHeight)}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('std_height') + "</span><span class="stat-value">${fmt(s.stdHeight)}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('range') + "</span><span class="stat-value">${fmt(s.minHeight)} – ${fmt(s.maxHeight)}</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('area_acres') + "</span><span class="stat-value">${fmt(s.totalArea)} acres</span></div>
-      <div class="stat-row"><span class="stat-label">" + t('avg_density') + "</span><span class="stat-value">${fmt(s.density, 3)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('polygons')}</span><span class="stat-value">${s.polys.join(', ')}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('trees')}</span><span class="stat-value">${s.trees} + ${s.avenueTrees} = ${s.totalTrees}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('avg_girth')}</span><span class="stat-value">${fmt(s.avgGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('median_girth')}</span><span class="stat-value">${fmt(s.medianGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('std_girth')}</span><span class="stat-value">${fmt(s.stdGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('min_girth')}/${t('max_girth')}</span><span class="stat-value">${fmt(s.minGirth)} – ${fmt(s.maxGirth)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('avg_height')}</span><span class="stat-value">${fmt(s.avgHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('median_girth')}</span><span class="stat-value">${fmt(s.medianHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('std_height')}</span><span class="stat-value">${fmt(s.stdHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('min_height')}/${t('max_height')}</span><span class="stat-value">${fmt(s.minHeight)} – ${fmt(s.maxHeight)}</span></div>
+      <div class="stat-row"><span class="stat-label">${t('area_acres')}</span><span class="stat-value">${fmt(s.totalArea)} acres</span></div>
+      <div class="stat-row"><span class="stat-label">${t('avg_density')}</span><span class="stat-value">${fmt(s.density, 3)}</span></div>
     </div>`;
   }).join('');
 }
