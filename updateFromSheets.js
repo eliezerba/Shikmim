@@ -91,7 +91,7 @@ async function buildData() {
     const distribution = readOrDefault('distribution.csv');
     
     // Process trees
-    const points = trees.rows.filter(r => smartGetField(r, 'פוליגון', 'Polygon')).map((r, i) => {
+    const points = trees.rows.map((r, i) => {
       const x = smartGetField(r, 'X', 'x');
       const y = smartGetField(r, 'Y', 'y');
       const latlon = (x != null && y != null) ? merc2wgs84(x, y) : null;

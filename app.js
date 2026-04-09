@@ -260,11 +260,11 @@ const baseDefs = {
 };
 
 /* ---------- utilities ---------- */
-function mean(arr) { const a = arr.filter(v => v != null && !isNaN(v)); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : null; }
-function median(arr) { const a = arr.filter(v => v != null && !isNaN(v)).sort((x, y) => x - y); if (!a.length) return null; const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
-function stddev(arr) { const m = mean(arr); if (m == null) return null; const a = arr.filter(v => v != null && !isNaN(v)); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / a.length); }
-function arrMin(arr) { const a = arr.filter(v => v != null && !isNaN(v)); return a.length ? Math.min(...a) : null; }
-function arrMax(arr) { const a = arr.filter(v => v != null && !isNaN(v)); return a.length ? Math.max(...a) : null; }
+function mean(arr) { const a = arr.filter(v => v != null && !isNaN(v) && v !== 0); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : null; }
+function median(arr) { const a = arr.filter(v => v != null && !isNaN(v) && v !== 0).sort((x, y) => x - y); if (!a.length) return null; const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
+function stddev(arr) { const m = mean(arr); if (m == null) return null; const a = arr.filter(v => v != null && !isNaN(v) && v !== 0); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / a.length); }
+function arrMin(arr) { const a = arr.filter(v => v != null && !isNaN(v) && v !== 0); return a.length ? Math.min(...a) : null; }
+function arrMax(arr) { const a = arr.filter(v => v != null && !isNaN(v) && v !== 0); return a.length ? Math.max(...a) : null; }
 function fmt(v, d = 1) { return v != null ? Number(v).toFixed(d) : '-'; }
 function fmtInt(v) { return v != null ? Math.round(v).toLocaleString('he-IL') : '-'; }
 const pltCfg = { responsive: true, displayModeBar: false };
@@ -708,9 +708,14 @@ function refreshChartTitles() {
 /* ---------- data loading ---------- */
 async function loadData() {
   try {
-    const resp = await fetch('data.json');
-    if (!resp.ok) throw new Error(t('data_error'));
-    DATA = await resp.json();
+    const inlineEl = document.getElementById('_dataInline');
+    if (inlineEl) {
+      DATA = JSON.parse(inlineEl.textContent);
+    } else {
+      const resp = await fetch('data.json');
+      if (!resp.ok) throw new Error(t('data_error'));
+      DATA = await resp.json();
+    }
     buildSuperAreas();
     init();
     document.getElementById('statusText').textContent = `${DATA.points.length} ${t('trees')} | ${DATA.polygons.length} ${t('polygons')} | ${DATA.lines.length} ${t('avenues')}`;
@@ -779,7 +784,7 @@ function computePolyStats(polyCode) {
   const lns = DATA.lines.filter(l => l.polygon === polyCode);
   const pObj = DATA.polygons.find(p => p.polygon === polyCode);
   const girths = pts.map(t => t.girth).filter(v => v != null && !isNaN(v));
-  const heights = pts.map(t => t.height).filter(v => v != null && !isNaN(v));
+  const heights = pts.map(t => normalizeHeight(t.height)).filter(v => v != null && !isNaN(v));
   const defSp = parseFloat(document.getElementById('defaultSpacing').value) || 8;
   const avenueTrees = lns.reduce((s, l) => {
     const sp = avenueSpacing[l.id] || defSp;
@@ -807,15 +812,35 @@ function computePolyStats(polyCode) {
   return result;
 }
 
+/* ---------- v8 additions ---------- */
+const EXCLUDED_POLYGON_CODES = new Set(['C', 'D', 'E']);
+let showOutsideTrees = false;
+
+function normalizeHeight(h) {
+  if (h == null || h === '') return null;
+  const n = Number(h);
+  if (!Number.isFinite(n) || n === 0) return null;
+  return (n >= 1 && n <= 99) ? n * 100 : n;
+}
+
+function analysisPolygons(polys) {
+  return polys.filter(p => !EXCLUDED_POLYGON_CODES.has(String(p.polygon || '').toUpperCase()));
+}
+
+function outsidePolygonPoints() {
+  return DATA.points.filter(t => !t.polygon);
+}
+
 /* ---------- filtering ---------- */
 function filteredPolygons() {
   const q = document.getElementById('searchPoly').value.trim().toLowerCase();
-  if (!q) return DATA.polygons;
-  return DATA.polygons.filter(p => (`${p.polygon} ${p.space_name_he || ''} ${p.space_name || ''} ${p.space_code || ''}`).toLowerCase().includes(q));
+  const base = analysisPolygons(DATA.polygons);
+  if (!q) return base;
+  return base.filter(p => (`${p.polygon} ${p.space_name_he || ''} ${p.space_name || ''} ${p.space_code || ''}`).toLowerCase().includes(q));
 }
 function filteredPoints(polys) {
   const set = new Set(polys.map(p => p.polygon));
-  return DATA.points.filter(t => !t.polygon || set.has(t.polygon));
+  return DATA.points.filter(t => t.polygon && set.has(t.polygon));
 }
 function filteredLines(polys) {
   const set = new Set(polys.map(p => p.polygon));
@@ -863,6 +888,7 @@ function drawMap() {
   Object.values(layers).forEach(g => g.clearLayers());
   const polys = filteredPolygons();
   const pts = filteredPoints(polys);
+  const outsidePts = showOutsideTrees ? outsidePolygonPoints() : [];
   const lns = filteredLines(polys);
   const showPolys = document.getElementById('chkPolys').checked;
   const showTrees = document.getElementById('chkTrees').checked;
@@ -884,14 +910,21 @@ function drawMap() {
     }
   });
 
-  if (showTrees) pts.forEach(t => {
-    const isSel = selectedPolygon && t.polygon === selectedPolygon;
-    const isSASel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(t.polygon);
-    const clr = isSel ? '#14532d' : (isSASel ? '#7c3aed' : '#16a34a');
-    L.circleMarker(t.latlon, { radius: 3.5, color: clr, fillColor: clr, fillOpacity: 0.9, weight: 1 })
-      .bindPopup(`עץ #${t.id}<br>פוליגון: ${t.polygon || 'ללא'}<br>היקף: ${t.girth ?? ''}<br>גובה: ${t.height ?? ''}`)
-      .addTo(layers.trees);
-  });
+  if (showTrees) {
+    pts.forEach(t => {
+      const isSel = selectedPolygon && t.polygon === selectedPolygon;
+      const isSASel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(t.polygon);
+      const clr = isSel ? '#14532d' : (isSASel ? '#7c3aed' : '#16a34a');
+      L.circleMarker(t.latlon, { radius: 3.5, color: clr, fillColor: clr, fillOpacity: 0.9, weight: 1 })
+        .bindPopup(`עץ #${t.id}<br>פוליגון: ${t.polygon || 'ללא'}<br>היקף: ${t.girth ?? ''}<br>גובה: ${normalizeHeight(t.height) ?? ''}`)
+        .addTo(layers.trees);
+    });
+    outsidePts.forEach(t => {
+      L.circleMarker(t.latlon, { radius: 4, color: '#92400e', fillColor: '#d97706', fillOpacity: 0.9, weight: 1 })
+        .bindPopup(`עץ #${t.id} (מחוץ לפוליגונים)<br>היקף: ${t.girth ?? ''}<br>גובה: ${normalizeHeight(t.height) ?? ''}`)
+        .addTo(layers.trees);
+    });
+  }
 
   if (showLines) lns.forEach(l => {
     L.polyline([l.latlon1, l.latlon2], { color: '#dc2626', weight: 3, dashArray: '8,5' })
@@ -899,7 +932,8 @@ function drawMap() {
       .addTo(layers.lines);
   });
 
-  document.getElementById('statusText').textContent = `${pts.length} עצים | ${polys.length} פוליגונים | ${lns.length} שדרות`;
+  const outsideLabel = showOutsideTrees ? ` (+${outsidePts.length} מחוץ לפוליגונים)` : '';
+  document.getElementById('statusText').textContent = `${pts.length} עצים${outsideLabel} | ${polys.length} פוליגונים | ${lns.length} שדרות`;
 }
 
 function fitToData() {
@@ -949,7 +983,7 @@ function updateKPIs() {
   document.getElementById('kPolys').textContent = fmtInt(activePolyObjs.length);
   document.getElementById('kLines').textContent = fmtInt(lns.length);
   document.getElementById('kAvgG').textContent = fmt(mean(pts.map(t => t.girth)));
-  document.getElementById('kAvgH').textContent = fmt(mean(pts.map(t => t.height)));
+  document.getElementById('kAvgH').textContent = fmt(mean(pts.map(t => normalizeHeight(t.height))));
   document.getElementById('kArea').textContent = fmt(activePolyObjs.reduce((s, p) => s + (p.area_acres || 0), 0));
   document.getElementById('kMedG').textContent = fmt(median(pts.map(t => t.girth)));
   document.getElementById('kSA').textContent = fmtInt(DATA.superAreas.length);
@@ -1177,8 +1211,8 @@ function updateCharts() {
   pts.forEach(t => {
     const k = t.polygon || 'ללא';
     if (!polyGroups[k]) polyGroups[k] = { girth: [], height: [] };
-    polyGroups[k].girth.push(t.girth);
-    polyGroups[k].height.push(t.height);
+    polyGroups[k].girth.push((t.girth != null && t.girth !== 0) ? t.girth : null);
+    polyGroups[k].height.push(normalizeHeight(t.height));
   });
   const scatterTraces = Object.entries(polyGroups).map(([k, v], i) => ({
     x: v.girth, y: v.height, mode: 'markers', type: 'scatter', name: k,
@@ -1193,17 +1227,17 @@ function updateCharts() {
   Plotly.newPlot('chartBars', [{ x: Object.keys(counts), y: Object.values(counts), type: 'bar', marker: { color: '#2563eb' } }], pltLay(''), pltCfg);
 
   // Histogram: girth
-  Plotly.newPlot('chartHist', [{ x: pts.map(t => t.girth).filter(v => v != null), type: 'histogram', marker: { color: '#0ea5e9' }, nbinsx: 30 }], pltLay(''), pltCfg);
+  Plotly.newPlot('chartHist', [{ x: pts.map(t => t.girth).filter(v => v != null && v !== 0), type: 'histogram', marker: { color: '#0ea5e9' }, nbinsx: 30 }], pltLay(''), pltCfg);
 
   // Box plot by polygon
   const boxTraces = Array.from(polySet).map((code, i) => {
-    const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null);
+    const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null && v !== 0);
     return { y: arr, type: 'box', name: code, boxpoints: false, marker: { color: colors[i % colors.length] } };
   });
   Plotly.newPlot('chartBox', boxTraces, pltLay(''), pltCfg);
 
   // Histogram: heights
-  Plotly.newPlot('chartHeights', [{ x: pts.map(t => t.height).filter(v => v != null), type: 'histogram', marker: { color: '#8b5cf6' }, nbinsx: 25 }], pltLay(''), pltCfg);
+  Plotly.newPlot('chartHeights', [{ x: pts.map(t => normalizeHeight(t.height)).filter(v => v != null), type: 'histogram', marker: { color: '#8b5cf6' }, nbinsx: 25 }], pltLay(''), pltCfg);
 
   // Density by polygon
   const densX = polys.map(p => p.polygon);
@@ -1222,7 +1256,7 @@ function updateCharts() {
 
   // Violin plot
   const violinTraces = Array.from(polySet).map((code, i) => {
-    const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null);
+    const arr = DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(v => v != null && v !== 0);
     return { y: arr, type: 'violin', name: code, box: { visible: true }, meanline: { visible: true }, marker: { color: colors[i % colors.length] } };
   });
   Plotly.newPlot('chartViolin', violinTraces, pltLay(''), pltCfg);
@@ -1363,7 +1397,8 @@ function updateAdvancedCharts() {
 function initGroupsUI() {
   const sel = document.getElementById('groupPolys');
   sel.innerHTML = '';
-  DATA.polygons.forEach(p => sel.add(new Option(`${p.polygon} - ${p.space_name_he || p.space_name || ''}`, p.polygon)));
+  DATA.polygons.filter(p => !EXCLUDED_POLYGON_CODES.has(String(p.polygon || '').toUpperCase()))
+    .forEach(p => sel.add(new Option(`${p.polygon} - ${p.space_name_he || p.space_name || ''}`, p.polygon)));
 }
 
 function saveGroup() {
@@ -1376,26 +1411,27 @@ function saveGroup() {
 }
 
 function groupSummary(group) {
-  const pts = DATA.points.filter(t => group.polys.includes(t.polygon));
-  const lns = DATA.lines.filter(l => group.polys.includes(l.polygon));
+  const validPolys = group.polys.filter(code => !EXCLUDED_POLYGON_CODES.has(String(code || '').toUpperCase()));
+  const pts = DATA.points.filter(t => validPolys.includes(t.polygon));
+  const lns = DATA.lines.filter(l => validPolys.includes(l.polygon));
   const defSp = parseFloat(document.getElementById('defaultSpacing').value) || 8;
   const avenueTrees = lns.reduce((s, l) => {
     const sp = avenueSpacing[l.id] || defSp;
     return s + ((l.length && sp > 0) ? Math.round(l.length / sp) : 0);
   }, 0);
   const girths = pts.map(t => t.girth).filter(v => v != null);
-  const heights = pts.map(t => t.height).filter(v => v != null);
+  const heights = pts.map(t => normalizeHeight(t.height)).filter(v => v != null);
   return {
-    name: group.name, polys: group.polys,
+    name: group.name, polys: validPolys,
     trees: pts.length, avenueTrees, totalTrees: pts.length + avenueTrees,
     avenues: lns.length,
     avgGirth: mean(girths), medianGirth: median(girths), stdGirth: stddev(girths),
     minGirth: arrMin(girths), maxGirth: arrMax(girths),
     avgHeight: mean(heights), medianHeight: median(heights), stdHeight: stddev(heights),
     minHeight: arrMin(heights), maxHeight: arrMax(heights),
-    totalArea: group.polys.reduce((s, code) => s + ((DATA.polygons.find(p => p.polygon === code)?.area_acres) || 0), 0),
+    totalArea: validPolys.reduce((s, code) => s + ((DATA.polygons.find(p => p.polygon === code)?.area_acres) || 0), 0),
     density: (() => {
-      const area = group.polys.reduce((s, code) => s + ((DATA.polygons.find(p => p.polygon === code)?.area_acres) || 0), 0);
+      const area = validPolys.reduce((s, code) => s + ((DATA.polygons.find(p => p.polygon === code)?.area_acres) || 0), 0);
       return area > 0 ? (pts.length + avenueTrees) / area : 0;
     })(),
   };
@@ -1833,6 +1869,14 @@ function init() {
   document.getElementById('btnExportCSV').onclick = exportCSV;
   const updateBtn = document.getElementById('btnUpdateSheets');
   if (updateBtn) updateBtn.onclick = updateFromSheets;
+
+  // Outside trees toggle
+  document.getElementById('btnToggleOutsideTrees').onclick = () => {
+    showOutsideTrees = !showOutsideTrees;
+    document.getElementById('btnToggleOutsideTrees').textContent =
+      showOutsideTrees ? 'הסר עצים מחוץ לפוליגונים' : 'הוסף עצים מחוץ לפוליגונים';
+    drawMap();
+  };
 }
 
 function toggleLanguage() {
