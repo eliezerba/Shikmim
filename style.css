@@ -65,6 +65,14 @@ main{display:grid;grid-template-columns:1fr 460px;height:calc(100vh - 56px);over
 .poly-item .info{font-size:12px;color:var(--text2)}
 .poly-item .info .name{font-size:13px;color:var(--text);font-weight:500}
 .poly-item .trees-badge{background:#dcfce7;color:#166534;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
+.poly-item.user-poly{border-color:#ef4444;background:#fff5f5}
+.poly-item.user-poly .code{color:#b91c1c}
+
+.draw-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px}
+.draw-row button{padding:7px 8px;font-size:12px}
+.draw-row #btnStartDrawPoly{border-color:#f59e0b;color:#92400e;background:#fffbeb}
+.draw-row #btnFinishDrawPoly{border-color:#16a34a;color:#166534;background:#f0fdf4}
+.draw-row #btnCancelDrawPoly{border-color:#ef4444;color:#991b1b;background:#fef2f2}
 
 /* === Super Area Cards === */
 .sa-card{background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:14px;margin-top:10px;cursor:pointer;transition:all .15s}

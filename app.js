@@ -1,5 +1,27 @@
-/* ===== Shikmim Research Dashboard v8 - app.js ===== */
+/* ===== Shikmim Research Dashboard v10 - app.js ===== */
 "use strict";
+
+/* ---------- ArcGIS API endpoint for polygons ---------- */
+const POLYGONS_API_URL = 'https://services5.arcgis.com/eJYUV73IZAY87Jwy/ArcGIS/rest/services/Ficus___Polygons/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson';
+
+/* ---------- Space metadata (not in API) ---------- */
+const POLYGON_SPACE_META = {
+  A: { space_name_he: 'יבנה - מערב',           space_name: 'Yavne - West',                        space_code: 'Ya'    },
+  B: { space_name_he: 'אשדוד - דרום',           space_name: 'Ashdod - South',                      space_code: 'As-S'  },
+  C: { space_name_he: 'אשדוד - דרום',           space_name: 'Ashdod - South',                      space_code: 'As-S'  },
+  D: { space_name_he: 'גברעם - מערב',           space_name: "Gvar'am - West",                      space_code: 'As-W'  },
+  E: { space_name_he: 'גברעם - מערב',           space_name: "Gvar'am - West",                      space_code: 'As-W'  },
+  F: { space_name_he: 'כרמיה - דרום',           space_name: 'Carmia - South',                      space_code: 'C'     },
+  G: { space_name_he: 'אשקלון - דרום',          space_name: 'Ashkelon - South',                    space_code: 'As-S'  },
+  H: { space_name_he: 'ברברה - צפון 1',         space_name: 'Mavqi\u02bfim (Barbara) - North 1',  space_code: 'Ma-N1' },
+  I: { space_name_he: 'ברברה - צפון 1',         space_name: 'Mavqi\u02bfim (Barbara) - North 1',  space_code: 'Ma-N1' },
+  J: { space_name_he: 'ברברה - צפון 2',         space_name: 'Mavqi\u02bfim (Barbara) - North 2',  space_code: 'Ma-N2' },
+  K: { space_name_he: 'ברברה - מערב',           space_name: 'Mavqi\u02bfim (Barbara) - West',      space_code: 'Ma-W'  },
+  L: { space_name_he: 'ברברה - צפון 2',         space_name: 'Mavqi\u02bfim (Barbara) - North 2',  space_code: 'Ma-N2' },
+  M: { space_name_he: 'ברברה - צפון 3',         space_name: 'Mavqi\u02bfim (Barbara) - North 3',  space_code: 'Ma-N3' },
+  N: { space_name_he: 'ברברה - צפון 3',         space_name: 'Mavqi\u02bfim (Barbara) - North 3',  space_code: 'Ma-N3' },
+  O: { space_name_he: 'ברברה - צפון 4',         space_name: 'Mavqi\u02bfim (Barbara) - North 4',  space_code: 'Ma-N4' },
+};
 
 /* ---------- Language & Translations ---------- */
 let LANG = localStorage.getItem('shikmim_lang') || 'he';
@@ -43,6 +65,11 @@ const TRANSLATIONS = {
     clear_selection: 'נקה בחירה',
     export_csv: 'ייצוא CSV',
     update_data: 'עדכון נתונים',
+    start_draw_polygon: 'התחל ציור פוליגון',
+    finish_draw_polygon: 'סיום ציור',
+    cancel_draw_polygon: 'ביטול ציור',
+    draw_polygon_help: 'לחצו על המפה כדי להוסיף נקודות. לסיום: "סיום ציור".',
+    draw_polygon_need_points: 'נדרשות לפחות 3 נקודות ליצירת פוליגון.',
     coordinates: 'קואורדינטות EPSG:3857 → WGS84',
     
     // Tabs
@@ -106,6 +133,9 @@ const TRANSLATIONS = {
     server_unavailable: 'שרת העדכון לא זמין',
     success_update: 'עודכן בהצלחה!',
     language: 'English',
+    user_polygon_name: 'פוליגון משתמש',
+    user_polygon_type: 'פוליגון ידני',
+    user_polygon_badge: 'ידני',
     
     // Legends
     mapped: 'במיפוי',
@@ -151,6 +181,11 @@ const TRANSLATIONS = {
     clear_selection: 'Clear Selection',
     export_csv: 'Export CSV',
     update_data: 'Update Data',
+    start_draw_polygon: 'Start Polygon Draw',
+    finish_draw_polygon: 'Finish Draw',
+    cancel_draw_polygon: 'Cancel Draw',
+    draw_polygon_help: 'Click on the map to add vertices, then click "Finish Draw".',
+    draw_polygon_need_points: 'At least 3 points are required to create a polygon.',
     coordinates: 'Coordinates EPSG:3857 → WGS84',
     
     // Tabs
@@ -214,6 +249,9 @@ const TRANSLATIONS = {
     server_unavailable: 'Update server unavailable',
     success_update: 'Updated successfully!',
     language: 'עברית',
+    user_polygon_name: 'User Polygon',
+    user_polygon_type: 'Manual Polygon',
+    user_polygon_badge: 'manual',
     
     // Legends
     mapped: 'Mapped',
@@ -235,6 +273,10 @@ let currentBase = null;
 let currentOverlay = null;
 let _polyStatsCache = {};
 let _saStatsCache = {};
+let isDrawingPolygon = false;
+let drawingPoints = [];
+
+const USER_POLYGON_STORAGE_KEY = 'shikmim_user_polygons_v1';
 
 const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const hasStaticDataFile = !window.location.protocol.startsWith('file');
@@ -245,6 +287,7 @@ const layers = {
   trees: L.layerGroup().addTo(map),
   lines: L.layerGroup().addTo(map),
   labels: L.layerGroup().addTo(map),
+  draw: L.layerGroup().addTo(map),
 };
 
 /* ---------- tile definitions (all POM layers) ---------- */
@@ -269,6 +312,213 @@ function fmt(v, d = 1) { return v != null ? Number(v).toFixed(d) : '-'; }
 function fmtInt(v) { return v != null ? Math.round(v).toLocaleString('he-IL') : '-'; }
 const pltCfg = { responsive: true, displayModeBar: false };
 const pltLay = (title, extra) => Object.assign({ title, font: { family: 'Segoe UI, Arial', size: 12 }, margin: { t: 40, b: 40, l: 50, r: 20 } }, extra || {});
+
+function isUserPolygonObj(p) {
+  return !!(p && p._isUser);
+}
+
+function getPolygonByCode(code) {
+  return DATA.polygons.find(p => p.polygon === code) || null;
+}
+
+function sanitizeLatLons(latlons) {
+  return (latlons || [])
+    .filter(ll => Array.isArray(ll) && Number.isFinite(ll[0]) && Number.isFinite(ll[1]))
+    .map(ll => [Number(ll[0]), Number(ll[1])]);
+}
+
+function polygonAreaAcres(latlons) {
+  const ring = sanitizeLatLons(latlons);
+  if (ring.length < 3) return 0;
+  const R = 6378137;
+  const meanLatRad = (ring.reduce((s, p) => s + p[0], 0) / ring.length) * Math.PI / 180;
+  const projected = ring.map(([lat, lon]) => {
+    const x = R * lon * Math.PI / 180 * Math.cos(meanLatRad);
+    const y = R * lat * Math.PI / 180;
+    return [x, y];
+  });
+  let twiceArea = 0;
+  for (let i = 0; i < projected.length; i++) {
+    const [x1, y1] = projected[i];
+    const [x2, y2] = projected[(i + 1) % projected.length];
+    twiceArea += (x1 * y2) - (x2 * y1);
+  }
+  const m2 = Math.abs(twiceArea) / 2;
+  return m2 / 4046.8564224;
+}
+
+function pointInPolygon(latlon, polygonLatLons) {
+  if (!Array.isArray(latlon) || !Array.isArray(polygonLatLons) || polygonLatLons.length < 3) return false;
+  const y = latlon[0];
+  const x = latlon[1];
+  let inside = false;
+  for (let i = 0, j = polygonLatLons.length - 1; i < polygonLatLons.length; j = i++) {
+    const yi = polygonLatLons[i][0];
+    const xi = polygonLatLons[i][1];
+    const yj = polygonLatLons[j][0];
+    const xj = polygonLatLons[j][1];
+    const intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi) / ((yj - yi) || 1e-12) + xi));
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function getPointsForPolygonCode(polyCode) {
+  const pObj = getPolygonByCode(polyCode);
+  if (!pObj) return [];
+  if (!isUserPolygonObj(pObj)) return DATA.points.filter(t => t.polygon === polyCode);
+  return DATA.points.filter(t => Array.isArray(t.latlon) && pointInPolygon(t.latlon, pObj.latlons));
+}
+
+function getLinesForPolygonCode(polyCode) {
+  const pObj = getPolygonByCode(polyCode);
+  if (!pObj) return [];
+  if (!isUserPolygonObj(pObj)) return DATA.lines.filter(l => l.polygon === polyCode);
+  return DATA.lines.filter(l => {
+    if (!Array.isArray(l.latlon1) || !Array.isArray(l.latlon2)) return false;
+    if (pointInPolygon(l.latlon1, pObj.latlons) || pointInPolygon(l.latlon2, pObj.latlons)) return true;
+    const mid = [(l.latlon1[0] + l.latlon2[0]) / 2, (l.latlon1[1] + l.latlon2[1]) / 2];
+    return pointInPolygon(mid, pObj.latlons);
+  });
+}
+
+function userPolygons() {
+  return DATA.polygons.filter(isUserPolygonObj);
+}
+
+function persistUserPolygons() {
+  const toStore = userPolygons().map(p => ({
+    polygon: p.polygon,
+    latlons: sanitizeLatLons(p.latlons),
+    space_name_he: p.space_name_he,
+    space_name: p.space_name,
+    space_type: p.space_type,
+    space_code: p.space_code,
+    _isUser: true,
+  }));
+  localStorage.setItem(USER_POLYGON_STORAGE_KEY, JSON.stringify(toStore));
+}
+
+function loadUserPolygons() {
+  const raw = localStorage.getItem(USER_POLYGON_STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return;
+    parsed.forEach(p => {
+      if (!p || !p.polygon || DATA.polygons.some(x => x.polygon === p.polygon)) return;
+      DATA.polygons.push({
+        polygon: String(p.polygon),
+        coords: [],
+        latlons: sanitizeLatLons(p.latlons),
+        space_name_he: p.space_name_he || `${t('user_polygon_name')} ${p.polygon}`,
+        space_name: p.space_name || `${t('user_polygon_name')} ${p.polygon}`,
+        space_code: p.space_code || 'USER',
+        space_type: p.space_type || t('user_polygon_type'),
+        area_acres: Number(polygonAreaAcres(p.latlons).toFixed(4)),
+        _isUser: true,
+      });
+    });
+  } catch (err) {
+    console.warn('Failed to load user polygons from localStorage', err);
+  }
+}
+
+function nextUserPolygonCode() {
+  let idx = 1;
+  const existing = new Set(DATA.polygons.map(p => String(p.polygon).toUpperCase()));
+  while (existing.has(`U${idx}`)) idx += 1;
+  return `U${idx}`;
+}
+
+function addUserPolygon(latlons) {
+  const ring = sanitizeLatLons(latlons);
+  if (ring.length < 3) return null;
+  const code = nextUserPolygonCode();
+  DATA.polygons.push({
+    polygon: code,
+    coords: [],
+    latlons: ring,
+    space_name_he: `${t('user_polygon_name')} ${code}`,
+    space_name: `${t('user_polygon_name')} ${code}`,
+    space_code: 'USER',
+    space_type: t('user_polygon_type'),
+    area_acres: Number(polygonAreaAcres(ring).toFixed(4)),
+    _isUser: true,
+  });
+  persistUserPolygons();
+  buildSuperAreas();
+  initGroupsUI();
+  populateCmpSelect('cmpTypeA', 'cmpSelA');
+  populateCmpSelect('cmpTypeB', 'cmpSelB');
+  return code;
+}
+
+function refreshDrawPreview() {
+  layers.draw.clearLayers();
+  if (!drawingPoints.length) return;
+  drawingPoints.forEach(ll => L.circleMarker(ll, {
+    radius: 4,
+    color: '#b91c1c',
+    fillColor: '#ef4444',
+    fillOpacity: 0.95,
+    weight: 1,
+  }).addTo(layers.draw));
+  if (drawingPoints.length >= 2) {
+    L.polyline(drawingPoints, { color: '#dc2626', weight: 2, dashArray: '5,4' }).addTo(layers.draw);
+  }
+  if (drawingPoints.length >= 3) {
+    L.polygon(drawingPoints, { color: '#dc2626', weight: 2, fillColor: '#fca5a5', fillOpacity: 0.2 }).addTo(layers.draw);
+  }
+}
+
+function updateDrawButtons() {
+  const startBtn = document.getElementById('btnStartDrawPoly');
+  const finishBtn = document.getElementById('btnFinishDrawPoly');
+  const cancelBtn = document.getElementById('btnCancelDrawPoly');
+  if (!startBtn || !finishBtn || !cancelBtn) return;
+  startBtn.disabled = isDrawingPolygon;
+  finishBtn.disabled = !isDrawingPolygon;
+  cancelBtn.disabled = !isDrawingPolygon;
+}
+
+function startPolygonDraw() {
+  isDrawingPolygon = true;
+  drawingPoints = [];
+  map.getContainer().style.cursor = 'crosshair';
+  const status = document.getElementById('updateStatus');
+  if (status) {
+    status.textContent = t('draw_polygon_help');
+    status.style.color = 'var(--warn)';
+  }
+  refreshDrawPreview();
+  updateDrawButtons();
+}
+
+function cancelPolygonDraw() {
+  isDrawingPolygon = false;
+  drawingPoints = [];
+  map.getContainer().style.cursor = '';
+  layers.draw.clearLayers();
+  const status = document.getElementById('updateStatus');
+  if (status) status.textContent = '';
+  updateDrawButtons();
+}
+
+function finishPolygonDraw() {
+  if (!isDrawingPolygon) return;
+  if (drawingPoints.length < 3) {
+    window.alert(t('draw_polygon_need_points'));
+    return;
+  }
+  const code = addUserPolygon(drawingPoints);
+  cancelPolygonDraw();
+  if (!code) return;
+  selectedPolygon = code;
+  selectedSA = null;
+  fitToPolygon(code);
+  updateAll();
+}
 
 const CHART_INFO_LABELS = {
   he: {
@@ -705,6 +955,40 @@ function refreshChartTitles() {
   });
 }
 
+/* ---------- Transform one ArcGIS GeoJSON feature → polygon object ---------- */
+function transformAPIPolygon(feature) {
+  const p = feature.properties;
+  const meta = POLYGON_SPACE_META[p.Name] || {};
+  // GeoJSON coordinates are [lon, lat]; Leaflet expects [lat, lon]. Close-ring vertex stripped.
+  const ring = feature.geometry.coordinates[0];
+  const latlons = ring.slice(0, -1).map(c => [c[1], c[0]]);
+  return {
+    polygon:            p.Name,
+    latlons,
+    space_name_he:      meta.space_name_he    || '',
+    space_name:         meta.space_name       || '',
+    space_code:         meta.space_code       || p.Name,
+    space_type:         p.Type               || '',
+    area_acres:         p.Area__Dunam_        || 0,
+    tree_count_sheet:   p.Ficus_Number        || 0,
+    mapped_ficus:       p.Mapped_Ficus,
+    avenue_count_sheet: 0,
+    avg_girth_sheet:    p.Av__Circumference   || 0,
+    density_sheet:      p.Density             || 0,
+    shape_area:         p.Shape__Area,
+    shape_length:       p.Shape__Length,
+  };
+}
+
+/* ---------- Fetch polygons from ArcGIS REST API ---------- */
+async function loadPolygonsFromAPI() {
+  const resp = await fetch(POLYGONS_API_URL);
+  if (!resp.ok) throw new Error('API ' + resp.status);
+  const geojson = await resp.json();
+  const features = (geojson.features || []).filter(f => f.geometry && f.properties && f.properties.Name);
+  DATA.polygons = features.map(transformAPIPolygon);
+}
+
 /* ---------- data loading ---------- */
 async function loadData() {
   try {
@@ -716,6 +1000,14 @@ async function loadData() {
       if (!resp.ok) throw new Error(t('data_error'));
       DATA = await resp.json();
     }
+    // Override polygon shapes from live ArcGIS API (same as v9)
+    try {
+      document.getElementById('statusText').textContent = 'טוען פוליגונים...';
+      await loadPolygonsFromAPI();
+    } catch (apiErr) {
+      console.warn('Polygon API fetch failed, using inline data:', apiErr);
+    }
+    loadUserPolygons();
     buildSuperAreas();
     init();
     document.getElementById('statusText').textContent = `${DATA.points.length} ${t('trees')} | ${DATA.polygons.length} ${t('polygons')} | ${DATA.lines.length} ${t('avenues')}`;
@@ -728,7 +1020,7 @@ async function loadData() {
 /* ---------- super-area computation ---------- */
 function buildSuperAreas() {
   const saMap = {};
-  DATA.polygons.forEach(p => {
+  DATA.polygons.filter(p => !isUserPolygonObj(p)).forEach(p => {
     const code = p.space_code || '?';
     if (!saMap[code]) saMap[code] = { code, name_he: p.space_name_he, name_en: p.space_name, polygons: [] };
     saMap[code].polygons.push(p.polygon);
@@ -780,9 +1072,9 @@ function computeSAStats(sa) {
 /* ---------- polygon stats (includes avenue trees) ---------- */
 function computePolyStats(polyCode) {
   if (_polyStatsCache[polyCode]) return _polyStatsCache[polyCode];
-  const pts = DATA.points.filter(t => t.polygon === polyCode);
-  const lns = DATA.lines.filter(l => l.polygon === polyCode);
-  const pObj = DATA.polygons.find(p => p.polygon === polyCode);
+  const pObj = getPolygonByCode(polyCode);
+  const pts = getPointsForPolygonCode(polyCode);
+  const lns = getLinesForPolygonCode(polyCode);
   const girths = pts.map(t => t.girth).filter(v => v != null && !isNaN(v));
   const heights = pts.map(t => normalizeHeight(t.height)).filter(v => v != null && !isNaN(v));
   const defSp = parseFloat(document.getElementById('defaultSpacing').value) || 8;
@@ -790,13 +1082,14 @@ function computePolyStats(polyCode) {
     const sp = avenueSpacing[l.id] || defSp;
     return s + ((l.length && sp > 0) ? Math.round(l.length / sp) : 0);
   }, 0);
+  const areaAcres = pObj?.area_acres || (isUserPolygonObj(pObj) ? polygonAreaAcres(pObj.latlons) : 0);
   const result = {
     polygon: polyCode,
     name_he: pObj?.space_name_he || '',
     name_en: pObj?.space_name || '',
     space_type: pObj?.space_type || '',
     space_code: pObj?.space_code || '',
-    area: pObj?.area_acres || 0,
+    area: areaAcres,
     treeCount: pts.length,
     avenueCount: lns.length,
     avenueTrees,
@@ -805,7 +1098,7 @@ function computePolyStats(polyCode) {
     minGirth: arrMin(girths), maxGirth: arrMax(girths),
     avgHeight: mean(heights), medianHeight: median(heights), stdHeight: stddev(heights),
     minHeight: arrMin(heights), maxHeight: arrMax(heights),
-    density: (pObj?.area_acres > 0) ? pts.length / pObj.area_acres : 0,
+    density: (areaAcres > 0) ? pts.length / areaAcres : 0,
     totalLineLength: lns.reduce((s, l) => s + (l.length || 0), 0),
   };
   _polyStatsCache[polyCode] = result;
@@ -864,6 +1157,16 @@ function setBase(mode) {
 }
 
 function getPolygonStyle(code) {
+  const isUser = isUserPolygonObj(getPolygonByCode(code));
+  if (isUser) {
+    const sel = selectedPolygon === code;
+    return {
+      color: '#b91c1c',
+      weight: sel ? 4 : 3,
+      fillColor: '#ef4444',
+      fillOpacity: sel ? 0.34 : 0.16,
+    };
+  }
   const sel = selectedPolygon === code;
   const saSel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(code);
   return {
@@ -896,10 +1199,11 @@ function drawMap() {
   const showLabels = document.getElementById('chkLabels').checked;
 
   if (showPolys) polys.forEach(p => {
-    const ordered = orderVertices(p.latlons);
-    const poly = L.polygon(ordered, getPolygonStyle(p.polygon)).addTo(layers.polys);
+    // Polygon coordinates from ArcGIS API (and data.json) are already in correct order — no resorting
+    const poly = L.polygon(p.latlons, getPolygonStyle(p.polygon)).addTo(layers.polys);
     const st = computePolyStats(p.polygon);
-    poly.bindPopup(`<b>${p.polygon} - ${p.space_name_he || ''}</b><br>${p.space_type || ''}<br>עצים: ${st.totalTrees} (${st.avenueTrees} משדרות)<br>ממוצע היקף: ${fmt(st.avgGirth)}<br>שטח: ${fmt(st.area)} acres`);
+    const userTag = isUserPolygonObj(p) ? `<span style="color:#b91c1c;font-weight:700">${t('user_polygon_badge')}</span><br>` : '';
+    poly.bindPopup(`<b>${p.polygon} - ${p.space_name_he || ''}</b><br>${userTag}${p.space_type || ''}<br>עצים: ${st.totalTrees} (${st.avenueTrees} משדרות)<br>ממוצע היקף: ${fmt(st.avgGirth)}<br>שטח: ${fmt(st.area)} acres`);
     poly.on('click', () => { selectedPolygon = p.polygon; selectedSA = null; updateAll(); });
     if (showLabels) {
       const lat = p.latlons.reduce((a, b) => a + b[0], 0) / p.latlons.length;
@@ -961,6 +1265,20 @@ function fitToSA(saCode) {
 
 /* ---------- KPIs ---------- */
 function updateKPIs() {
+  if (selectedPolygon && isUserPolygonObj(getPolygonByCode(selectedPolygon))) {
+    const st = computePolyStats(selectedPolygon);
+    document.getElementById('kTrees').textContent = fmtInt(st.totalTrees);
+    document.getElementById('kPolys').textContent = '1';
+    document.getElementById('kLines').textContent = fmtInt(st.avenueCount);
+    document.getElementById('kAvgG').textContent = fmt(st.avgGirth);
+    document.getElementById('kAvgH').textContent = fmt(st.avgHeight);
+    document.getElementById('kArea').textContent = fmt(st.area);
+    document.getElementById('kMedG').textContent = fmt(st.medianGirth);
+    document.getElementById('kSA').textContent = fmtInt(DATA.superAreas.length);
+    document.getElementById('kDens').textContent = fmt(st.density, 2);
+    updateSelectionDetail();
+    return;
+  }
   const polys = filteredPolygons();
   const activePoly = selectedPolygon ? [selectedPolygon] : (selectedSA ? DATA.superAreas.find(s => s.code === selectedSA)?.polygons || [] : []);
   const pts = activePoly.length
@@ -1075,9 +1393,10 @@ function renderPolyList() {
   const container = document.getElementById('polyList');
   container.innerHTML = DATA.polygons.map(p => {
     const st = computePolyStats(p.polygon);
-    return `<div class="poly-item ${selectedPolygon === p.polygon ? 'selected' : ''}" data-poly="${p.polygon}">
+    const isUser = isUserPolygonObj(p);
+    return `<div class="poly-item ${selectedPolygon === p.polygon ? 'selected' : ''} ${isUser ? 'user-poly' : ''}" data-poly="${p.polygon}">
       <span class="code">${p.polygon}</span>
-      <span class="info"><span class="name">${p.space_name_he || p.space_name || ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | ${t('avg_density')}: ${fmt(st.density, 3)}</span>
+      <span class="info"><span class="name">${p.space_name_he || p.space_name || ''}${isUser ? ` <b style="color:#b91c1c">(${t('user_polygon_badge')})</b>` : ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | ${t('avg_density')}: ${fmt(st.density, 3)}</span>
       <span class="trees-badge">${st.totalTrees} ${t('trees')}</span>
     </div>`;
   }).join('');
@@ -1180,7 +1499,7 @@ function updateSACharts() {
 /* ---------- overview charts ---------- */
 function updateOverviewCharts() {
   // Bar chart: trees per polygon with avenue trees stacked
-  const codes = DATA.polygons.map(p => p.polygon);
+  const codes = DATA.polygons.filter(p => !isUserPolygonObj(p)).map(p => p.polygon);
   const stats = codes.map(computePolyStats);
   Plotly.newPlot('chartOverviewBar', [
     { x: codes, y: stats.map(s => s.treeCount), type: 'bar', name: t('mapped'), marker: { color: '#16a34a' } },
@@ -1189,7 +1508,7 @@ function updateOverviewCharts() {
 
   // Pie chart: space types
   const typeCounts = {};
-  DATA.polygons.forEach(p => { const st = p.space_type || 'Other'; typeCounts[st] = (typeCounts[st] || 0) + 1; });
+  DATA.polygons.filter(p => !isUserPolygonObj(p)).forEach(p => { const st = p.space_type || 'Other'; typeCounts[st] = (typeCounts[st] || 0) + 1; });
   Plotly.newPlot('chartOverviewPie', [{
     labels: Object.keys(typeCounts), values: Object.values(typeCounts),
     type: 'pie', hole: 0.4, textinfo: 'label+percent',
@@ -1269,7 +1588,7 @@ function updateAdvancedCharts() {
   const pts = activePoly.length
     ? DATA.points.filter(t => activePoly.includes(t.polygon))
     : filteredPoints(polys);
-  const polyStats = DATA.polygons.map(p => computePolyStats(p.polygon));
+  const polyStats = DATA.polygons.filter(p => !isUserPolygonObj(p)).map(p => computePolyStats(p.polygon));
 
   // Treemap: area proportional — branchvalues:'remainder' is most reliable; parent values=0
   const tmLabels  = ['כל השטחים'];
@@ -1349,7 +1668,7 @@ function updateAdvancedCharts() {
 
   // Space type pie
   const typeTrees = {};
-  DATA.polygons.forEach(p => {
+  DATA.polygons.filter(p => !isUserPolygonObj(p)).forEach(p => {
     const t = p.space_type || 'אחר';
     const st = computePolyStats(p.polygon);
     typeTrees[t] = (typeTrees[t] || 0) + st.totalTrees;
@@ -1608,7 +1927,11 @@ function getUnitStats(type, key) {
 
 function getUnitPoints(polyCodes) {
   const set = new Set(polyCodes);
-  return DATA.points.filter(t => set.has(t.polygon));
+  const pts = [];
+  set.forEach(code => {
+    getPointsForPolygonCode(code).forEach(p => pts.push(p));
+  });
+  return pts;
 }
 
 function runComparison() {
@@ -1869,6 +2192,18 @@ function init() {
   document.getElementById('btnExportCSV').onclick = exportCSV;
   const updateBtn = document.getElementById('btnUpdateSheets');
   if (updateBtn) updateBtn.onclick = updateFromSheets;
+  const startDrawBtn = document.getElementById('btnStartDrawPoly');
+  const finishDrawBtn = document.getElementById('btnFinishDrawPoly');
+  const cancelDrawBtn = document.getElementById('btnCancelDrawPoly');
+  if (startDrawBtn) startDrawBtn.onclick = startPolygonDraw;
+  if (finishDrawBtn) finishDrawBtn.onclick = finishPolygonDraw;
+  if (cancelDrawBtn) cancelDrawBtn.onclick = cancelPolygonDraw;
+  map.on('click', e => {
+    if (!isDrawingPolygon) return;
+    drawingPoints.push([e.latlng.lat, e.latlng.lng]);
+    refreshDrawPreview();
+  });
+  updateDrawButtons();
 
   // Outside trees toggle
   document.getElementById('btnToggleOutsideTrees').onclick = () => {
@@ -1902,6 +2237,12 @@ function retranslateUI() {
   document.getElementById('btnClearSel').textContent = t('clear_selection');
   document.getElementById('btnExportCSV').textContent = t('export_csv');
   document.getElementById('btnUpdateSheets').textContent = t('update_data');
+  const startDrawBtn = document.getElementById('btnStartDrawPoly');
+  const finishDrawBtn = document.getElementById('btnFinishDrawPoly');
+  const cancelDrawBtn = document.getElementById('btnCancelDrawPoly');
+  if (startDrawBtn) startDrawBtn.textContent = t('start_draw_polygon');
+  if (finishDrawBtn) finishDrawBtn.textContent = t('finish_draw_polygon');
+  if (cancelDrawBtn) cancelDrawBtn.textContent = t('cancel_draw_polygon');
   const coordsNote = document.querySelector('.float .small.mt8');
   if (coordsNote) coordsNote.textContent = t('coordinates');
   // Tabs
