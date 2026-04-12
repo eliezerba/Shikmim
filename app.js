@@ -1106,7 +1106,7 @@ function computePolyStats(polyCode) {
 }
 
 /* ---------- v8 additions ---------- */
-const EXCLUDED_POLYGON_CODES = new Set(['C', 'D', 'E']);
+const EXCLUDED_POLYGON_CODES = new Set([]);
 let showOutsideTrees = false;
 
 function normalizeHeight(h) {
