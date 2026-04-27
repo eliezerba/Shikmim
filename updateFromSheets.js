@@ -126,13 +126,11 @@ function normalizePolygonCode(value) {
   return code || null;
 }
 
-function normalizeSpaceCode(value, polygonCode) {
+function normalizeSpaceCode(value) {
+  // Returns the Area column value (the super-area key), or null if the polygon
+  // has no Area value — meaning it belongs to no super-area.
   const raw = value == null ? '' : String(value).trim();
-  if (raw) return raw.toUpperCase();
-  const poly = normalizePolygonCode(polygonCode);
-  if (!poly) return null;
-  const root = poly.match(/^[A-Z]+/);
-  return root ? root[0] : poly;
+  return raw ? raw.toUpperCase() : null;
 }
 
 function extractPublishedKey(pubUrl) {
@@ -422,7 +420,7 @@ async function buildData() {
         latlons: [],
         space_name_he: '',
         space_name: '',
-        space_code: normalizeSpaceCode(null, code),
+        space_code: normalizeSpaceCode(null),
         space_type: '',
         area_acres: 0,
         tree_count_sheet: null,

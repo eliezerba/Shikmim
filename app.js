@@ -996,8 +996,8 @@ function transformAPIPolygon(feature) {
     // Always use the polygon code and the freshly-parsed geometry
     polygon: code,
     latlons,
-    // Ensure space_code is never empty
-    space_code: sheetRow.space_code || code,
+    // space_code comes strictly from the sheet's Area column (null = no super-area). Never invent one.
+    space_code: Object.prototype.hasOwnProperty.call(sheetRow, 'space_code') ? sheetRow.space_code : null,
   };
 }
 
@@ -1021,7 +1021,7 @@ function mergePolygonsFromSheetAndAPI(sheetPolygons, apiPolygons) {
       polygon: code,
       latlons: sanitizeLatLons(p.latlons),
       area_acres: Number(p.area_acres) || 0,
-      space_code: p.space_code || p.area || p.AREA || null,
+      space_code: p.space_code ?? null, // null means no super-area; never fall back to letter
     });
   });
 
@@ -1040,12 +1040,12 @@ function mergePolygonsFromSheetAndAPI(sheetPolygons, apiPolygons) {
       ...current,
       latlons: apiP.latlons?.length ? apiP.latlons : current.latlons,
       area_acres: Number(current.area_acres) || Number(apiP.area_acres) || 0,
-      // space_type and space_code come exclusively from the Google Sheet (current).
-      // Use sheet value even if empty; only fall back to API for polygons missing from the sheet entirely.
+      // space_type and space_code come exclusively from the Google Sheet.
+      // Sheet value wins unconditionally — even null means "no super-area", not a reason to fall back.
       space_type:    current.space_type  != null ? current.space_type  : apiP.space_type,
       space_name_he: current.space_name_he || apiP.space_name_he,
       space_name:    current.space_name    || apiP.space_name,
-      space_code:    current.space_code    != null ? current.space_code : (apiP.space_code || code),
+      space_code:    current.space_code, // always from sheet; null = no super-area
     });
   });
 
@@ -1123,13 +1123,11 @@ function _merc2wgs84(x, y) {
   return [lat, lon];
 }
 
-function _spaceCode(val, polygonCode) {
+function _spaceCode(val) {
+  // Returns the Area column value (the super-area key), or null if the polygon
+  // has no Area value — meaning it belongs to no super-area.
   const raw = val == null ? '' : String(val).trim();
-  if (raw) return raw.toUpperCase();
-  const poly = normalizePolygonCode(polygonCode);
-  if (!poly) return null;
-  const root = poly.match(/^[A-Z]+/);
-  return root ? root[0] : poly;
+  return raw ? raw.toUpperCase() : null;
 }
 
 function _parseCoordsStr(str) {
@@ -1145,9 +1143,11 @@ function _parseCoordsStr(str) {
 }
 
 async function _fetchSheetTab(encodedName) {
-  // encodedName must already be percent-encoded (do NOT call encodeURIComponent here)
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}`;
-  const resp = await fetch(url);
+  // encodedName must already be percent-encoded (do NOT call encodeURIComponent here).
+  // Append a timestamp so Google's servers never return a stale cached response.
+  const bust = Date.now();
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}&_=${bust}`;
+  const resp = await fetch(url, { cache: 'no-store' });
   if (!resp.ok) throw new Error(`Sheet "${encodedName}" HTTP ${resp.status}`);
   return _parseCSVBrowser(await resp.text());
 }
@@ -1170,12 +1170,21 @@ async function _fetchFirstTab(nameList, headerHints) {
 }
 
 async function buildDataFromSheets() {
-  const [treesParsed, avesParsed, polysParsed, distParsed] = await Promise.all([
-    _fetchFirstTab(SHEET_TAB_NAMES.trees,        SHEET_TAB_HEADER_HINTS.trees),
-    _fetchFirstTab(SHEET_TAB_NAMES.avenues,      SHEET_TAB_HEADER_HINTS.avenues),
-    _fetchFirstTab(SHEET_TAB_NAMES.polygons,     SHEET_TAB_HEADER_HINTS.polygons),
-    _fetchFirstTab(SHEET_TAB_NAMES.distribution, SHEET_TAB_HEADER_HINTS.distribution),
+  // Fetch trees, avenues, polygons in parallel — all three are required
+  const [treesParsed, avesParsed, polysParsed] = await Promise.all([
+    _fetchFirstTab(SHEET_TAB_NAMES.trees,    SHEET_TAB_HEADER_HINTS.trees),
+    _fetchFirstTab(SHEET_TAB_NAMES.avenues,  SHEET_TAB_HEADER_HINTS.avenues),
+    _fetchFirstTab(SHEET_TAB_NAMES.polygons, SHEET_TAB_HEADER_HINTS.polygons),
   ]);
+
+  // Distribution is optional (used only for histograms).
+  // Its tab URL sometimes returns the wrong tab; don't let it abort the whole fetch.
+  let distParsed = { headers: [], rows: [] };
+  try {
+    distParsed = await _fetchFirstTab(SHEET_TAB_NAMES.distribution, SHEET_TAB_HEADER_HINTS.distribution);
+  } catch (e) {
+    console.warn('Distribution tab unavailable from Google Sheet (will use fallback):', e.message);
+  }
 
   const points = treesParsed.rows.map((r, i) => {
     const x = _sheetGet(r, 'X', 'x');
@@ -1221,8 +1230,7 @@ async function buildDataFromSheets() {
       space_name: _sheetGet(r, 'Space Name', 'שם באנגלית', 'Name EN', 'space_name'),
       // AREA column = super-area grouping key (read live from sheet every load)
       space_code: _spaceCode(
-        _sheetGet(r, 'AREA', 'Area', 'area', '_col4', 'Space Code', 'space_code'),
-        code
+        _sheetGet(r, 'AREA', 'Area', 'area', '_col4', 'Space Code', 'space_code')
       ),
       space_type: _sheetGet(r, 'Space type', 'סוג', 'Type', 'space_type'),
       area_acres: _sheetGet(r, 'Area (acres)', 'שטח acres', 'area_acres'),
@@ -1244,7 +1252,7 @@ async function buildDataFromSheets() {
     polygons.push({
       polygon: code, latlons: [],
       space_name_he: '', space_name: '',
-      space_code: _spaceCode(null, code),
+      space_code: null, // phantom polygon — no Area value in sheet, not part of any super-area
       space_type: '', area_acres: 0,
       tree_count_sheet: null, avenue_count_sheet: null,
       sum_girth_sheet: null, avg_girth_sheet: null,
@@ -1271,12 +1279,15 @@ async function buildDataFromSheets() {
 async function loadData() {
   try {
     // Always try to fetch live from Google Sheet so data stays current on every load
+    let loadedLive = false;
     try {
       document.getElementById('statusText').textContent = 'טוען מהגיליון...';
       DATA = await buildDataFromSheets();
+      loadedLive = true;
       console.log(`Loaded live from Google Sheet: ${DATA.points.length} trees, ${DATA.polygons.length} polygons`);
     } catch (sheetErr) {
       console.warn('Live Google Sheet fetch failed, falling back to embedded data:', sheetErr);
+      document.getElementById('statusText').textContent = 'שגיאה בטעינת הגיליון: ' + sheetErr.message + ' — טוען נתונים שמורים...';
       const inlineEl = document.getElementById('_dataInline');
       if (inlineEl) {
         DATA = JSON.parse(inlineEl.textContent);
@@ -1301,7 +1312,8 @@ async function loadData() {
     loadUserPolygons();
     buildSuperAreas();
     init();
-    document.getElementById('statusText').textContent = `${DATA.points.length} ${t('trees')} | ${DATA.polygons.length} ${t('polygons')} | ${DATA.lines.length} ${t('avenues')}`;
+    const sourceLabel = loadedLive ? ' • נטען מהגיליון' : ' • נטען מנתונים שמורים';
+    document.getElementById('statusText').textContent = `${DATA.points.length} ${t('trees')} | ${DATA.polygons.length} ${t('polygons')} | ${DATA.lines.length} ${t('avenues')}${sourceLabel}`;
   } catch (e) {
     document.getElementById('statusText').textContent = t('error_loading') + e.message;
     console.error(e);
@@ -1312,7 +1324,8 @@ async function loadData() {
 function buildSuperAreas() {
   const saMap = {};
   DATA.polygons.filter(p => !isUserPolygonObj(p)).forEach(p => {
-    const code = String(p.space_code || p.polygon || '?').trim();
+    const code = p.space_code ? String(p.space_code).trim() : null;
+    if (!code) return; // no Area value — polygon not part of any super-area
     if (!saMap[code]) saMap[code] = { code, name_he: p.space_name_he, name_en: p.space_name, polygons: [] };
     saMap[code].polygons.push(p.polygon);
   });
