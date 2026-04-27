@@ -26,10 +26,56 @@ function merc2wgs84(x, y) {
 }
 
 function parseCSV(content) {
-  const lines = content.split('\n').map(l => l.trim()).filter(l => l);
-  if (!lines.length) return { headers: [], rows: [] };
+  const records = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
 
-  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  for (let i = 0; i < content.length; i += 1) {
+    const c = content[i];
+
+    if (c === '"') {
+      if (inQuotes && content[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (c === ',' && !inQuotes) {
+      row.push(field);
+      field = '';
+      continue;
+    }
+
+    if ((c === '\n' || c === '\r') && !inQuotes) {
+      if (c === '\r' && content[i + 1] === '\n') i += 1;
+      row.push(field);
+      records.push(row);
+      row = [];
+      field = '';
+      continue;
+    }
+
+    field += c;
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    records.push(row);
+  }
+
+  while (records.length && records[records.length - 1].every(v => String(v || '').trim() === '')) {
+    records.pop();
+  }
+  while (records.length && records[0].every(v => String(v || '').trim() === '')) {
+    records.shift();
+  }
+  if (!records.length) return { headers: [], rows: [] };
+
+  const rawHeaders = records[0].map(h => String(h || '').trim().replace(/^"|"$/g, ''));
   const seen = {};
   const headers = rawHeaders.map((h, i) => {
     const key = h || `_col${i}`;
@@ -41,24 +87,19 @@ function parseCSV(content) {
     return key;
   });
 
-  const rows = lines.slice(1).map(line => {
-    const vals = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i += 1) {
-      const c = line[i];
-      if (c === '"') inQuotes = !inQuotes;
-      else if (c === ',' && !inQuotes) {
-        vals.push(current.replace(/^"|"$/g, '').trim());
-        current = '';
-      } else current += c;
-    }
-    vals.push(current.replace(/^"|"$/g, '').trim());
+  const rows = records.slice(1)
+  .filter(vals => vals.some(v => String(v || '').trim() !== ''))
+  .map(vals => {
 
     const obj = {};
     headers.forEach((h, i) => {
-      const v = vals[i];
-      obj[h] = !v || v === '' ? null : (isNaN(v) ? v : parseFloat(v));
+      const raw = String(vals[i] ?? '').trim();
+      if (!raw) {
+        obj[h] = null;
+        return;
+      }
+      const nrm = raw.replace(/,/g, '');
+      obj[h] = /^-?\d+(\.\d+)?$/.test(nrm) ? parseFloat(nrm) : raw;
     });
     return obj;
   });
@@ -77,6 +118,21 @@ function smartGetField(obj, ...possibleNames) {
 
 function normalizeName(s) {
   return String(s || '').trim().toLowerCase().replace(/[\s_\-]+/g, '');
+}
+
+function normalizePolygonCode(value) {
+  if (value == null) return null;
+  const code = String(value).trim().toUpperCase();
+  return code || null;
+}
+
+function normalizeSpaceCode(value, polygonCode) {
+  const raw = value == null ? '' : String(value).trim();
+  if (raw) return raw.toUpperCase();
+  const poly = normalizePolygonCode(polygonCode);
+  if (!poly) return null;
+  const root = poly.match(/^[A-Z]+/);
+  return root ? root[0] : poly;
 }
 
 function extractPublishedKey(pubUrl) {
@@ -183,12 +239,26 @@ async function fetchBySheetNameOrFallback(sourceInfo, sheetNameCandidates, fallb
     return readOrDefault(fallbackFile);
   }
 
+  const expectedHeaderHints = {
+    trees: ['x', 'y', 'היקעץ', 'היקףעץ', 'polygon', 'פוליגון'],
+    avenues: ['xstart', 'x1', 'אורך', 'length', 'polygon', 'פוליגון'],
+    polygons: ['polygon', 'coordinates', 'coords', 'שםבעברית', 'spacename'],
+    distribution: ['girthrange', 'girtherange', 'min', 'max', 'count'],
+  };
+
+  const hints = expectedHeaderHints[label] || [];
+  const hasExpectedHeaders = parsed => {
+    if (!hints.length) return true;
+    const normHeaders = parsed.headers.map(normalizeName);
+    return hints.some(h => normHeaders.some(col => col.includes(h)));
+  };
+
   for (const sheetName of sheetNameCandidates) {
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sourceInfo.sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
     try {
       const csv = await fetchText(csvUrl);
       const parsed = parseCSV(csv);
-      if (parsed.rows.length > 0 || parsed.headers.length > 0) {
+      if ((parsed.rows.length > 0 || parsed.headers.length > 0) && hasExpectedHeaders(parsed)) {
         console.log(`OK: ${label} by sheet name "${sheetName}" (${parsed.rows.length} rows)`);
         return parsed;
       }
@@ -286,7 +356,7 @@ async function buildData() {
         x,
         y,
         latlon,
-        polygon: smartGetField(r, 'פוליגון', 'Polygon', 'polygon'),
+        polygon: normalizePolygonCode(smartGetField(r, 'פוליגון', 'Polygon', 'polygon')),
       };
     }).filter(p => p.x != null && p.y != null);
 
@@ -305,20 +375,25 @@ async function buildData() {
         x1, y1, x2, y2,
         latlon1: (x1 != null && y1 != null) ? merc2wgs84(x1, y1) : null,
         latlon2: (x2 != null && y2 != null) ? merc2wgs84(x2, y2) : null,
-        polygon: smartGetField(r, 'פוליגון', 'Polygon', 'polygon'),
+        polygon: normalizePolygonCode(smartGetField(r, 'פוליגון', 'Polygon', 'polygon')),
       };
     }).filter(l => l.x1 != null && l.y1 != null && l.x2 != null && l.y2 != null);
 
     const polys = polygons.rows.filter(r => smartGetField(r, 'Polygon', 'פוליגון', 'polygon')).map(r => {
+      const polygonCode = normalizePolygonCode(smartGetField(r, 'Polygon', 'פוליגון', 'polygon'));
       const coordsStr = smartGetField(r, 'Coordinates', 'Coords', 'coords', 'latlons', 'Latlons');
       const parsedCoords = parsePolygonCoords(coordsStr);
       return {
-        polygon: smartGetField(r, 'Polygon', 'פוליגון', 'polygon'),
+        polygon: polygonCode,
         coords: parsedCoords.coords,
         latlons: parsedCoords.latlons,
         space_name_he: smartGetField(r, 'Space Name [HE]', 'שם בעברית', 'Name HE', 'space_name_he'),
         space_name: smartGetField(r, 'Space Name', 'שם באנגלית', 'Name EN', 'space_name'),
-        space_code: smartGetField(r, '_col4', 'טור E (מאחד)', 'Space Code', 'טור E', 'space_code'),
+        // AREA is the super-area grouping key in the current sheet.
+        space_code: normalizeSpaceCode(
+          smartGetField(r, 'AREA', 'Area', 'area', '_col4', 'טור E (מאחד)', 'Space Code', 'טור E', 'space_code'),
+          polygonCode
+        ),
         space_type: smartGetField(r, 'Space type', 'סוג', 'Type', 'space_type'),
         area_acres: smartGetField(r, 'Area (acres)', 'שטח acres', 'Area Acres', 'area_acres'),
         tree_count_sheet: smartGetField(r, 'כמות שקמים', 'עצים בשיט', 'Tree Count'),
@@ -330,6 +405,35 @@ async function buildData() {
         max_girth_sheet: smartGetField(r, 'היקף: מקסימום', 'מקסימום', 'Max Girth'),
         density_sheet: smartGetField(r, 'צפיפות שקמים בפוליגון', 'צפיפות', 'Density'),
       };
+    });
+
+    // Ensure all polygon codes appearing in trees/avenues are represented,
+    // even when the polygons tab misses a row or geometry for a new area.
+    const polySet = new Set(polys.map(p => p.polygon));
+    const inferredCodes = new Set([
+      ...points.map(p => p.polygon).filter(Boolean),
+      ...lines.map(l => l.polygon).filter(Boolean),
+    ]);
+    inferredCodes.forEach(code => {
+      if (polySet.has(code)) return;
+      polys.push({
+        polygon: code,
+        coords: [],
+        latlons: [],
+        space_name_he: '',
+        space_name: '',
+        space_code: normalizeSpaceCode(null, code),
+        space_type: '',
+        area_acres: 0,
+        tree_count_sheet: null,
+        avenue_count_sheet: null,
+        sum_girth_sheet: null,
+        avg_girth_sheet: null,
+        std_girth_sheet: null,
+        min_girth_sheet: null,
+        max_girth_sheet: null,
+        density_sheet: null,
+      });
     });
 
     const poly_stats = {};

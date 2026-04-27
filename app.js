@@ -4,24 +4,7 @@
 /* ---------- ArcGIS API endpoint for polygons ---------- */
 const POLYGONS_API_URL = 'https://services5.arcgis.com/eJYUV73IZAY87Jwy/ArcGIS/rest/services/Ficus___Polygons/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson';
 
-/* ---------- Space metadata (not in API) ---------- */
-const POLYGON_SPACE_META = {
-  A: { space_name_he: 'יבנה - מערב',           space_name: 'Yavne - West',                        space_code: 'Ya'    },
-  B: { space_name_he: 'אשדוד - דרום',           space_name: 'Ashdod - South',                      space_code: 'As-S'  },
-  C: { space_name_he: 'אשדוד - דרום',           space_name: 'Ashdod - South',                      space_code: 'As-S'  },
-  D: { space_name_he: 'גברעם - מערב',           space_name: "Gvar'am - West",                      space_code: 'As-W'  },
-  E: { space_name_he: 'גברעם - מערב',           space_name: "Gvar'am - West",                      space_code: 'As-W'  },
-  F: { space_name_he: 'כרמיה - דרום',           space_name: 'Carmia - South',                      space_code: 'C'     },
-  G: { space_name_he: 'אשקלון - דרום',          space_name: 'Ashkelon - South',                    space_code: 'As-S'  },
-  H: { space_name_he: 'ברברה - צפון 1',         space_name: 'Mavqi\u02bfim (Barbara) - North 1',  space_code: 'Ma-N1' },
-  I: { space_name_he: 'ברברה - צפון 1',         space_name: 'Mavqi\u02bfim (Barbara) - North 1',  space_code: 'Ma-N1' },
-  J: { space_name_he: 'ברברה - צפון 2',         space_name: 'Mavqi\u02bfim (Barbara) - North 2',  space_code: 'Ma-N2' },
-  K: { space_name_he: 'ברברה - מערב',           space_name: 'Mavqi\u02bfim (Barbara) - West',      space_code: 'Ma-W'  },
-  L: { space_name_he: 'ברברה - צפון 2',         space_name: 'Mavqi\u02bfim (Barbara) - North 2',  space_code: 'Ma-N2' },
-  M: { space_name_he: 'ברברה - צפון 3',         space_name: 'Mavqi\u02bfim (Barbara) - North 3',  space_code: 'Ma-N3' },
-  N: { space_name_he: 'ברברה - צפון 3',         space_name: 'Mavqi\u02bfim (Barbara) - North 3',  space_code: 'Ma-N3' },
-  O: { space_name_he: 'ברברה - צפון 4',         space_name: 'Mavqi\u02bfim (Barbara) - North 4',  space_code: 'Ma-N4' },
-};
+/* Space metadata is loaded dynamically from data.json (polygons sheet) — no hardcoded map. */
 
 /* ---------- Language & Translations ---------- */
 let LANG = localStorage.getItem('shikmim_lang') || 'he';
@@ -865,6 +848,36 @@ function listToHtml(items) {
   return `<ul>${items.map(x => `<li>${x}</li>`).join('')}</ul>`;
 }
 
+function normalizePolygonCode(code) {
+  return String(code || '').trim().toUpperCase();
+}
+
+function parseApiGeometryToLatLons(geometry) {
+  if (!geometry || !Array.isArray(geometry.coordinates)) return [];
+
+  const toRing = ring => {
+    if (!Array.isArray(ring)) return [];
+    return ring
+      .filter(c => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1]))
+      .map(c => [Number(c[1]), Number(c[0])]);
+  };
+
+  if (geometry.type === 'Polygon') {
+    return toRing(geometry.coordinates[0]);
+  }
+
+  if (geometry.type === 'MultiPolygon') {
+    const rings = geometry.coordinates
+      .map(poly => Array.isArray(poly) ? toRing(poly[0]) : [])
+      .filter(ring => ring.length >= 3);
+    if (!rings.length) return [];
+    // Downstream code expects a simple ring; pick the largest outer ring.
+    return rings.sort((a, b) => b.length - a.length)[0];
+  }
+
+  return [];
+}
+
 function chartInfoHtml(chartId) {
   const cfg = CHART_INFO[chartId];
   if (!cfg) return '';
@@ -955,21 +968,22 @@ function refreshChartTitles() {
   });
 }
 
-/* ---------- Transform one ArcGIS GeoJSON feature → polygon object ---------- */
+/* ---------- Transform one ArcGIS GeoJSON feature → polygon object ----------
+   Metadata (name, space_code / super-area, etc.) always comes from the sheet
+   row already loaded into DATA.polygons.  The API contributes geometry only.
+   For polygons not yet in the sheet we still record what the API provides.
+-------------------------------------------------------------------------- */
 function transformAPIPolygon(feature) {
   const p = feature.properties;
-  const meta = POLYGON_SPACE_META[p.Name] || {};
-  // GeoJSON coordinates are [lon, lat]; Leaflet expects [lat, lon]. Close-ring vertex stripped.
-  const ring = feature.geometry.coordinates[0];
-  const latlons = ring.slice(0, -1).map(c => [c[1], c[0]]);
+  const code = normalizePolygonCode(p.Name);
+  // Prefer sheet-derived metadata that was populated from data.json
+  const sheetRow = (DATA.polygons || []).find(x => x.polygon === code) || {};
+  const latlons = parseApiGeometryToLatLons(feature.geometry);
   return {
-    polygon:            p.Name,
-    latlons,
-    space_name_he:      meta.space_name_he    || '',
-    space_name:         meta.space_name       || '',
-    space_code:         meta.space_code       || p.Name,
-    space_type:         p.Type               || '',
-    area_acres:         p.Area__Dunam_        || 0,
+    // API-only fallbacks — used only for polygons absent from the Google Sheet.
+    // space_type intentionally left empty; it comes exclusively from the sheet via ...sheetRow below.
+    space_type:         '',
+    area_acres:         p.Acres || p.Area__Dunam_ || 0,
     tree_count_sheet:   p.Ficus_Number        || 0,
     mapped_ficus:       p.Mapped_Ficus,
     avenue_count_sheet: 0,
@@ -977,6 +991,13 @@ function transformAPIPolygon(feature) {
     density_sheet:      p.Density             || 0,
     shape_area:         p.Shape__Area,
     shape_length:       p.Shape__Length,
+    // Sheet row overrides everything (spread last so sheet wins)
+    ...sheetRow,
+    // Always use the polygon code and the freshly-parsed geometry
+    polygon: code,
+    latlons,
+    // Ensure space_code is never empty
+    space_code: sheetRow.space_code || code,
   };
 }
 
@@ -986,26 +1007,296 @@ async function loadPolygonsFromAPI() {
   if (!resp.ok) throw new Error('API ' + resp.status);
   const geojson = await resp.json();
   const features = (geojson.features || []).filter(f => f.geometry && f.properties && f.properties.Name);
-  DATA.polygons = features.map(transformAPIPolygon);
+  return features.map(transformAPIPolygon).filter(p => p.latlons.length >= 3);
 }
+
+function mergePolygonsFromSheetAndAPI(sheetPolygons, apiPolygons) {
+  const merged = new Map();
+
+  (sheetPolygons || []).forEach(p => {
+    const code = normalizePolygonCode(p?.polygon);
+    if (!code) return;
+    merged.set(code, {
+      ...p,
+      polygon: code,
+      latlons: sanitizeLatLons(p.latlons),
+      area_acres: Number(p.area_acres) || 0,
+      space_code: p.space_code || p.area || p.AREA || null,
+    });
+  });
+
+  (apiPolygons || []).forEach(apiP => {
+    const code = normalizePolygonCode(apiP.polygon);
+    if (!code) return;
+    const current = merged.get(code);
+    if (!current) {
+      merged.set(code, {
+        ...apiP,
+        polygon: code,
+      });
+      return;
+    }
+    merged.set(code, {
+      ...current,
+      latlons: apiP.latlons?.length ? apiP.latlons : current.latlons,
+      area_acres: Number(current.area_acres) || Number(apiP.area_acres) || 0,
+      // space_type and space_code come exclusively from the Google Sheet (current).
+      // Use sheet value even if empty; only fall back to API for polygons missing from the sheet entirely.
+      space_type:    current.space_type  != null ? current.space_type  : apiP.space_type,
+      space_name_he: current.space_name_he || apiP.space_name_he,
+      space_name:    current.space_name    || apiP.space_name,
+      space_code:    current.space_code    != null ? current.space_code : (apiP.space_code || code),
+    });
+  });
+
+  return Array.from(merged.values());
+}
+
+/* ===== Live Google Sheet fetching =====
+   Every page load fetches directly from the published Google Sheet.
+   The embedded data.json is used only as a fallback (offline / CORS failure).
+   ===================================================================== */
+const SHEET_ID = '1Ipq2qcn_kyLTh-F50ViV4vS5OPYNfYhN';
+// Tab names are pre-percent-encoded to avoid runtime encoding issues.
+// Hebrew encodings: עצים=%D7%A2%D7%A6%D7%99%D7%9D, שדרות=%D7%A9%D7%93%D7%A8%D7%95%D7%AA,
+// פוליגונים=%D7%A4%D7%95%D7%9C%D7%99%D7%92%D7%95%D7%A0%D7%99%D7%9D, התפלגות=%D7%94%D7%AA%D7%A4%D7%9C%D7%92%D7%95%D7%AA
+const SHEET_TAB_NAMES = {
+  trees:        ['%D7%A2%D7%A6%D7%99%D7%9D',                               'trees'],
+  avenues:      ['%D7%A9%D7%93%D7%A8%D7%95%D7%AA',                         'avenues'],
+  polygons:     ['%D7%A4%D7%95%D7%9C%D7%99%D7%92%D7%95%D7%A0%D7%99%D7%9D', 'polygons'],
+  distribution: ['%D7%94%D7%AA%D7%A4%D7%9C%D7%92%D7%95%D7%AA',             'distribution'],
+};
+// Header hints to validate that we fetched the right tab
+const SHEET_TAB_HEADER_HINTS = {
+  trees:        ['X', 'Y'],
+  avenues:      ['X_Start', 'X1', 'x1'],
+  polygons:     ['Polygon', 'Space type', 'Coordinates'],
+  distribution: ['girth_range', 'Girth Range'],
+};
+
+function _parseCSVBrowser(text) {
+  const records = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQuotes && text[i + 1] === '"') { field += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (c === ',' && !inQuotes) {
+      row.push(field); field = '';
+    } else if ((c === '\n' || c === '\r') && !inQuotes) {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); records.push(row);
+      row = []; field = '';
+    } else { field += c; }
+  }
+  if (field || row.length) { row.push(field); records.push(row); }
+  while (records.length && records[0].every(v => !String(v).trim())) records.shift();
+  while (records.length && records[records.length - 1].every(v => !String(v).trim())) records.pop();
+  if (!records.length) return { headers: [], rows: [] };
+  const headers = records[0].map((h, i) => String(h || '').trim() || `_col${i}`);
+  const rows = records.slice(1)
+    .filter(vals => vals.some(v => String(v || '').trim()))
+    .map(vals => {
+      const obj = {};
+      headers.forEach((h, idx) => {
+        const raw = String(vals[idx] ?? '').trim();
+        if (!raw) { obj[h] = null; return; }
+        const nrm = raw.replace(/,/g, '');
+        obj[h] = /^-?\d+(\.\d+)?$/.test(nrm) ? parseFloat(nrm) : raw;
+      });
+      return obj;
+    });
+  return { headers, rows };
+}
+
+function _sheetGet(obj, ...names) {
+  for (const n of names) {
+    if (n in obj && obj[n] !== null && obj[n] !== undefined) return obj[n];
+  }
+  return null;
+}
+
+function _merc2wgs84(x, y) {
+  const lon = (x / 6378137) * (180 / Math.PI);
+  const lat = (2 * Math.atan(Math.exp(y / 6378137)) - Math.PI / 2) * (180 / Math.PI);
+  return [lat, lon];
+}
+
+function _spaceCode(val, polygonCode) {
+  const raw = val == null ? '' : String(val).trim();
+  if (raw) return raw.toUpperCase();
+  const poly = normalizePolygonCode(polygonCode);
+  if (!poly) return null;
+  const root = poly.match(/^[A-Z]+/);
+  return root ? root[0] : poly;
+}
+
+function _parseCoordsStr(str) {
+  const latlons = [];
+  const matches = (str || '').match(/\(([^)]+)\)/g) || [];
+  matches.forEach(m => {
+    const parts = m.replace(/[()]/g, '').split(',');
+    const x = parseFloat(parts[0]);
+    const y = parseFloat(parts[1]);
+    if (isFinite(x) && isFinite(y)) latlons.push(_merc2wgs84(x, y));
+  });
+  return latlons;
+}
+
+async function _fetchSheetTab(encodedName) {
+  // encodedName must already be percent-encoded (do NOT call encodeURIComponent here)
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Sheet "${encodedName}" HTTP ${resp.status}`);
+  return _parseCSVBrowser(await resp.text());
+}
+
+async function _fetchFirstTab(nameList, headerHints) {
+  for (const name of nameList) {
+    try {
+      const p = await _fetchSheetTab(name);
+      if (p.rows.length > 0 || p.headers.length > 0) {
+        // Validate we got the right tab by checking header hints
+        if (headerHints && headerHints.length > 0) {
+          const ok = headerHints.some(h => p.headers.includes(h));
+          if (!ok) continue; // wrong tab returned, try next candidate
+        }
+        return p;
+      }
+    } catch (_) { /* try next name */ }
+  }
+  throw new Error(`Could not fetch any of: ${nameList.join(', ')}`);
+}
+
+async function buildDataFromSheets() {
+  const [treesParsed, avesParsed, polysParsed, distParsed] = await Promise.all([
+    _fetchFirstTab(SHEET_TAB_NAMES.trees,        SHEET_TAB_HEADER_HINTS.trees),
+    _fetchFirstTab(SHEET_TAB_NAMES.avenues,      SHEET_TAB_HEADER_HINTS.avenues),
+    _fetchFirstTab(SHEET_TAB_NAMES.polygons,     SHEET_TAB_HEADER_HINTS.polygons),
+    _fetchFirstTab(SHEET_TAB_NAMES.distribution, SHEET_TAB_HEADER_HINTS.distribution),
+  ]);
+
+  const points = treesParsed.rows.map((r, i) => {
+    const x = _sheetGet(r, 'X', 'x');
+    const y = _sheetGet(r, 'Y', 'y');
+    return {
+      id: _sheetGet(r, '#', 'ID', 'id') || (i + 1),
+      girth: _sheetGet(r, 'היקף עץ', 'היקף', 'Girth', 'girth'),
+      height: _sheetGet(r, 'גובה עץ', 'גובה', 'Height', 'height'),
+      trunk_diameter: _sheetGet(r, 'קוטר גזע עץ', 'קוטר גזע', 'trunk_diameter'),
+      canopy_diameter: _sheetGet(r, 'קוטר נוף', 'canopy_diameter'),
+      stems: _sheetGet(r, 'מספר גזעים', 'stems'),
+      x, y,
+      latlon: (x != null && y != null) ? _merc2wgs84(x, y) : null,
+      polygon: normalizePolygonCode(_sheetGet(r, 'פוליגון', 'Polygon', 'polygon')),
+    };
+  }).filter(p => p.x != null && p.y != null);
+
+  const lines = avesParsed.rows.filter(r => _sheetGet(r, 'X_Start', 'X1', 'x1') != null).map((r, i) => {
+    const x1 = _sheetGet(r, 'X_Start', 'X1', 'x1');
+    const y1 = _sheetGet(r, 'Y_Start', 'Y1', 'y1');
+    const x2 = _sheetGet(r, 'X_End', 'X2', 'x2');
+    const y2 = _sheetGet(r, 'Y_End', 'Y2', 'y2');
+    return {
+      id: _sheetGet(r, 'ID', 'id') || (i + 1),
+      tree_width: _sheetGet(r, 'רוחב עץ', 'width'),
+      avg_girth: _sheetGet(r, 'היקף ממוצע', 'avg_girth'),
+      avg_height: _sheetGet(r, 'גובה ממוצע', 'avg_height'),
+      type: _sheetGet(r, 'סוג', 'Type', 'type'),
+      length: _sheetGet(r, 'אורך', 'Length', 'length'),
+      x1, y1, x2, y2,
+      latlon1: (x1 != null && y1 != null) ? _merc2wgs84(x1, y1) : null,
+      latlon2: (x2 != null && y2 != null) ? _merc2wgs84(x2, y2) : null,
+      polygon: normalizePolygonCode(_sheetGet(r, 'פוליגון', 'Polygon', 'polygon')),
+    };
+  }).filter(l => l.x1 != null && l.y1 != null && l.x2 != null && l.y2 != null);
+
+  const polygons = polysParsed.rows.filter(r => _sheetGet(r, 'Polygon', 'פוליגון', 'polygon')).map(r => {
+    const code = normalizePolygonCode(_sheetGet(r, 'Polygon', 'פוליגון', 'polygon'));
+    return {
+      polygon: code,
+      latlons: _parseCoordsStr(_sheetGet(r, 'Coordinates', 'Coords', 'coords')),
+      space_name_he: _sheetGet(r, 'Space Name [HE]', 'שם בעברית', 'Name HE', 'space_name_he'),
+      space_name: _sheetGet(r, 'Space Name', 'שם באנגלית', 'Name EN', 'space_name'),
+      // AREA column = super-area grouping key (read live from sheet every load)
+      space_code: _spaceCode(
+        _sheetGet(r, 'AREA', 'Area', 'area', '_col4', 'Space Code', 'space_code'),
+        code
+      ),
+      space_type: _sheetGet(r, 'Space type', 'סוג', 'Type', 'space_type'),
+      area_acres: _sheetGet(r, 'Area (acres)', 'שטח acres', 'area_acres'),
+      tree_count_sheet: _sheetGet(r, 'כמות שקמים', 'Tree Count'),
+      avenue_count_sheet: _sheetGet(r, 'כמות שדרות', 'Avenue Count'),
+      sum_girth_sheet: _sheetGet(r, 'סכום היקף', 'Sum Girth'),
+      avg_girth_sheet: _sheetGet(r, 'ממוצע היקף', 'Avg Girth'),
+      std_girth_sheet: _sheetGet(r, 'סטיית תקן היקף', 'Std Girth'),
+      min_girth_sheet: _sheetGet(r, 'היקף: מינימום', 'Min Girth'),
+      max_girth_sheet: _sheetGet(r, 'היקף: מקסימום', 'Max Girth'),
+      density_sheet: _sheetGet(r, 'צפיפות שקמים בפוליגון', 'Density'),
+    };
+  });
+
+  // Add phantom entries for polygon codes in trees/avenues that the polygons sheet is missing
+  const polySet = new Set(polygons.map(p => p.polygon));
+  [...points, ...lines].map(x => x.polygon).filter(Boolean).forEach(code => {
+    if (polySet.has(code)) return;
+    polygons.push({
+      polygon: code, latlons: [],
+      space_name_he: '', space_name: '',
+      space_code: _spaceCode(null, code),
+      space_type: '', area_acres: 0,
+      tree_count_sheet: null, avenue_count_sheet: null,
+      sum_girth_sheet: null, avg_girth_sheet: null,
+      std_girth_sheet: null, min_girth_sheet: null,
+      max_girth_sheet: null, density_sheet: null,
+    });
+    polySet.add(code);
+  });
+
+  const distribution = distParsed.rows
+    .map(r => ({ ...r, girth_range: _sheetGet(r, 'girth_range', 'Girth Range', 'טווח') }))
+    .filter(r => r.girth_range != null);
+
+  return {
+    points, lines, polygons, distribution,
+    poly_stats: {},
+    sourceSheet: `https://docs.google.com/spreadsheets/d/${SHEET_ID}`,
+    lastUpdated: new Date().toISOString(),
+  };
+}
+/* ===== end live sheet fetch ===== */
 
 /* ---------- data loading ---------- */
 async function loadData() {
   try {
-    const inlineEl = document.getElementById('_dataInline');
-    if (inlineEl) {
-      DATA = JSON.parse(inlineEl.textContent);
-    } else {
-      const resp = await fetch('data.json');
-      if (!resp.ok) throw new Error(t('data_error'));
-      DATA = await resp.json();
+    // Always try to fetch live from Google Sheet so data stays current on every load
+    try {
+      document.getElementById('statusText').textContent = 'טוען מהגיליון...';
+      DATA = await buildDataFromSheets();
+      console.log(`Loaded live from Google Sheet: ${DATA.points.length} trees, ${DATA.polygons.length} polygons`);
+    } catch (sheetErr) {
+      console.warn('Live Google Sheet fetch failed, falling back to embedded data:', sheetErr);
+      const inlineEl = document.getElementById('_dataInline');
+      if (inlineEl) {
+        DATA = JSON.parse(inlineEl.textContent);
+      } else {
+        const resp = await fetch('data.json');
+        if (!resp.ok) throw new Error(t('data_error'));
+        DATA = await resp.json();
+      }
     }
-    // Override polygon shapes from live ArcGIS API (same as v9)
+
+    const sheetPolygons = Array.isArray(DATA.polygons) ? DATA.polygons : [];
+    DATA.polygons = mergePolygonsFromSheetAndAPI(sheetPolygons, []);
+
+    // Merge in live ArcGIS geometries without dropping sheet-only polygons/metadata.
     try {
       document.getElementById('statusText').textContent = 'טוען פוליגונים...';
-      await loadPolygonsFromAPI();
+      const apiPolygons = await loadPolygonsFromAPI();
+      DATA.polygons = mergePolygonsFromSheetAndAPI(sheetPolygons, apiPolygons);
     } catch (apiErr) {
-      console.warn('Polygon API fetch failed, using inline data:', apiErr);
+      console.warn('Polygon API fetch failed, using sheet polygons:', apiErr);
     }
     loadUserPolygons();
     buildSuperAreas();
@@ -1021,7 +1312,7 @@ async function loadData() {
 function buildSuperAreas() {
   const saMap = {};
   DATA.polygons.filter(p => !isUserPolygonObj(p)).forEach(p => {
-    const code = p.space_code || '?';
+    const code = String(p.space_code || p.polygon || '?').trim();
     if (!saMap[code]) saMap[code] = { code, name_he: p.space_name_he, name_en: p.space_name, polygons: [] };
     saMap[code].polygons.push(p.polygon);
   });
@@ -1107,7 +1398,7 @@ function computePolyStats(polyCode) {
 
 /* ---------- v8 additions ---------- */
 const EXCLUDED_POLYGON_CODES = new Set([]);
-let showOutsideTrees = false;
+let showOutsideTrees = true;
 
 function normalizeHeight(h) {
   if (h == null || h === '') return null;
@@ -1121,7 +1412,8 @@ function analysisPolygons(polys) {
 }
 
 function outsidePolygonPoints() {
-  return DATA.points.filter(t => !t.polygon);
+  const polySet = new Set((DATA.polygons || []).map(p => p.polygon));
+  return DATA.points.filter(t => !t.polygon || !polySet.has(t.polygon));
 }
 
 /* ---------- filtering ---------- */
@@ -1199,6 +1491,7 @@ function drawMap() {
   const showLabels = document.getElementById('chkLabels').checked;
 
   if (showPolys) polys.forEach(p => {
+    if (!Array.isArray(p.latlons) || p.latlons.length < 3) return;
     // Polygon coordinates from ArcGIS API (and data.json) are already in correct order — no resorting
     const poly = L.polygon(p.latlons, getPolygonStyle(p.polygon)).addTo(layers.polys);
     const st = computePolyStats(p.polygon);
@@ -2206,6 +2499,8 @@ function init() {
   updateDrawButtons();
 
   // Outside trees toggle
+  document.getElementById('btnToggleOutsideTrees').textContent =
+    showOutsideTrees ? 'הסר עצים מחוץ לפוליגונים' : 'הוסף עצים מחוץ לפוליגונים';
   document.getElementById('btnToggleOutsideTrees').onclick = () => {
     showOutsideTrees = !showOutsideTrees;
     document.getElementById('btnToggleOutsideTrees').textContent =
