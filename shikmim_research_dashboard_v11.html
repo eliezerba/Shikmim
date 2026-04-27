@@ -31143,7 +31143,8 @@ function buildSuperAreas() {
   DATA.polygons.filter(p => !isUserPolygonObj(p)).forEach(p => {
     const code = p.space_code ? String(p.space_code).trim() : null;
     if (!code) return; // no Area value — polygon not part of any super-area
-    if (!saMap[code]) saMap[code] = { code, name_he: p.space_name_he, name_en: p.space_name, polygons: [] };
+    // Super-area name = exactly the value in the Area column (=code). No invented names.
+    if (!saMap[code]) saMap[code] = { code, polygons: [] };
     saMap[code].polygons.push(p.polygon);
   });
   DATA.superAreas = Object.values(saMap);
@@ -31164,8 +31165,6 @@ function computeSAStats(sa) {
   }, 0);
   const result = {
     code: sa.code,
-    name_he: sa.name_he,
-    name_en: sa.name_en,
     polygons: sa.polygons,
     treeCount: pts.length,
     avenueCount: lns.length,
@@ -31475,7 +31474,65 @@ function updateSelectionDetail() {
   } else if (selectedSA) {
     const sa = DATA.superAreas.find(s => s.code === selectedSA);
     const st = computeSAStats(sa);
-    const saName = LANG === 'he' ? (st.name_he || st.name_en) : (st.name_en || st.name_he);
+    const saName = st.code;
+
+    // Build space-type breakdown table
+    const stypeMap = {};
+    sa.polygons.forEach(polyCode => {
+      const ps = computePolyStats(polyCode);
+      const pObj = DATA.polygons.find(x => x.polygon === polyCode);
+      const stype = (pObj?.space_type || '').trim() || '—';
+      if (!stypeMap[stype]) stypeMap[stype] = { polygons: [], trees: 0, avenueTrees: 0, area: 0, girths: [], heights: [] };
+      const g = stypeMap[stype];
+      g.polygons.push(polyCode);
+      g.trees += ps.treeCount;
+      g.avenueTrees += ps.avenueTrees;
+      g.area += ps.area || 0;
+      // collect raw girth/height values for aggregate stats
+      DATA.points.filter(pt => pt.polygon === polyCode).forEach(pt => {
+        if (pt.girth != null && !isNaN(pt.girth)) g.girths.push(pt.girth);
+        const h = normalizeHeight(pt.height);
+        if (h != null) g.heights.push(h);
+      });
+    });
+    const stypeRows = Object.entries(stypeMap)
+      .sort((a, b) => b[1].trees + b[1].avenueTrees - (a[1].trees + a[1].avenueTrees))
+      .map(([stype, g]) => {
+        const total = g.trees + g.avenueTrees;
+        const avgG = g.girths.length ? (g.girths.reduce((a,b)=>a+b,0)/g.girths.length) : null;
+        const avgH = g.heights.length ? (g.heights.reduce((a,b)=>a+b,0)/g.heights.length) : null;
+        const density = g.area > 0 ? g.trees / g.area : null;
+        return `<tr>
+          <td>${stype}</td>
+          <td style="text-align:center">${g.polygons.join(', ')}</td>
+          <td style="text-align:center">${total}</td>
+          <td style="text-align:center">${g.trees}</td>
+          <td style="text-align:center">${g.avenueTrees}</td>
+          <td style="text-align:center">${fmt(g.area)}</td>
+          <td style="text-align:center">${avgG != null ? fmt(avgG) : '—'}</td>
+          <td style="text-align:center">${avgH != null ? fmt(avgH) : '—'}</td>
+          <td style="text-align:center">${density != null ? fmt(density,3) : '—'}</td>
+        </tr>`;
+      }).join('');
+    const spaceTypeTable = `
+      <div class="card" style="margin-top:10px">
+        <h5>${t('space_types_dist')}</h5>
+        <table class="avenue-table">
+          <thead><tr>
+            <th>${t('space_type')}</th>
+            <th>${t('polygons')}</th>
+            <th>${t('total_trees')}</th>
+            <th>${t('mapped_trees')}</th>
+            <th>${t('avenue_trees')}</th>
+            <th>${t('area_acres')}</th>
+            <th>${t('avg_girth')}</th>
+            <th>${t('avg_height')}</th>
+            <th>${t('avg_density')}</th>
+          </tr></thead>
+          <tbody>${stypeRows}</tbody>
+        </table>
+      </div>`;
+
     el.innerHTML = `
       <div class="card">
         <div class="detail-header"><span class="poly-code">${st.code}</span><span class="poly-name">${t('super_area_code')}: ${saName}</span></div>
@@ -31505,6 +31562,7 @@ function updateSelectionDetail() {
             <div class="stat-row"><span class="stat-label">${t('space_type')}</span><span class="stat-value">${st.spaceTypes.join(', ')}</span></div>
           </div>
         </div>
+        ${spaceTypeTable}
       </div>`;
   } else {
     el.innerHTML = `<div class="card small">${t('no_data')}</div>`;
@@ -31539,7 +31597,7 @@ function renderSAList() {
   container.innerHTML = DATA.superAreas.map(sa => {
     const st = computeSAStats(sa);
     return `<div class="sa-card ${selectedSA === sa.code ? 'selected' : ''}" data-sa="${sa.code}">
-      <h5>${sa.code} — ${sa.name_he || sa.name_en || ''}</h5>
+      <h5>${sa.code}</h5>
       <div class="sa-polys">${t('polygons')}: ${sa.polygons.join(', ')}</div>
       <div class="sa-stats">
         <div class="sa-stat"><div class="sv">${st.totalTrees}</div>${t('trees')}</div>
@@ -31567,7 +31625,7 @@ function renderSADetail() {
   const sa = DATA.superAreas.find(s => s.code === selectedSA);
   const st = computeSAStats(sa);
   el.innerHTML = `<div class="card">
-    <h5>${st.code} — ${st.name_he} — ${t('trees')}</h5>
+    <h5>${st.code} — ${t('trees')}</h5>
     <div class="detail-grid">
       <div class="card"><h5>${t('tree_data')}</h5>
         <div class="stat-row"><span class="stat-label">${t('mapped_trees')}</span><span class="stat-value">${st.treeCount}</span></div>
@@ -31723,7 +31781,7 @@ function updateAdvancedCharts() {
     tmLabels.push(sa.code);
     tmParents.push('כל השטחים');
     tmValues.push(0);
-    tmCustom.push(sa.name_he || sa.code);
+    tmCustom.push(sa.code);
     sa.polygons.forEach(code => {
       const p = DATA.polygons.find(x => x.polygon === code);
       const st = computePolyStats(code);
@@ -31975,7 +32033,7 @@ function populateCmpSelect(typeSelId, valSelId) {
     DATA.superAreas.forEach(sa => {
       const opt = document.createElement('option');
       opt.value = sa.code;
-      opt.textContent = `${sa.code} – ${sa.name_he || sa.name_en || ''}`;
+      opt.textContent = sa.code;
       sel.appendChild(opt);
     });
   }
@@ -32178,7 +32236,7 @@ function initCompareUI() {
   types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; stSel.appendChild(o); });
 
   const saSel = document.getElementById('cmpFilterSA');
-  DATA.superAreas.forEach(sa => { const o = document.createElement('option'); o.value = sa.code; o.textContent = `${sa.code} – ${sa.name_he || ''}`; saSel.appendChild(o); });
+  DATA.superAreas.forEach(sa => { const o = document.createElement('option'); o.value = sa.code; o.textContent = sa.code; saSel.appendChild(o); });
 
   document.getElementById('cmpTypeA').addEventListener('change', () => populateCmpSelect('cmpTypeA', 'cmpSelA'));
   document.getElementById('cmpTypeB').addEventListener('change', () => populateCmpSelect('cmpTypeB', 'cmpSelB'));
