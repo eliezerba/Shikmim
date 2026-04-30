@@ -178,6 +178,12 @@ main.fullwidth-mode #mapWrap{display:none}
 .stc-mode-btns{display:flex;gap:4px;background:#e8edf4;border-radius:8px;padding:3px}
 .stc-mode-btn{padding:5px 14px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text2);transition:background .15s,color .15s}
 .stc-mode-btn.active{background:#fff;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.stc-multisel-wrap{position:relative;display:inline-block}
+.stc-multisel-btn{padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px;cursor:pointer;min-width:180px;text-align:right;font-family:inherit}
+.stc-multisel-panel{position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.14);z-index:200;min-width:210px;max-height:240px;overflow-y:auto;padding:4px 0}
+.stc-multisel-item{display:flex;align-items:center;gap:8px;padding:5px 14px;cursor:pointer;font-size:13px;transition:background .1s}
+.stc-multisel-item:hover{background:#f1f5f9}
+.stc-multisel-item input[type=checkbox]{cursor:pointer;accent-color:var(--primary)}
 .stc-body{padding:14px 16px}
 .stc-type-section{margin-top:18px}
 .stc-type-title{font-size:14px;font-weight:700;color:var(--primary);padding:7px 12px;background:#eff6ff;border-right:4px solid var(--primary);border-radius:0 8px 8px 0;margin-bottom:10px}
@@ -399,11 +405,17 @@ main.fullwidth-mode #mapWrap{display:none}
     <div class="stc-header">
       <h4 id="stcTitle">השוואת מרחבים</h4>
       <div class="stc-mode-btns">
-        <button class="stc-mode-btn active" id="stcModeByType" onclick="setSTCMode('bytype')">לפי סוג שטח</button>
-        <button class="stc-mode-btn" id="stcModeBySpace" onclick="setSTCMode('byspace')">לפי מרחב</button>
+        <button class="stc-mode-btn" id="stcModeByType" onclick="setSTCMode('bytype')">לפי סוג שטח</button>
+        <button class="stc-mode-btn active" id="stcModeBySpace" onclick="setSTCMode('byspace')">לפי מרחב</button>
       </div>
       <select id="stcTypeFilter"><option value="">כל סוגי השטחים</option></select>
-      <select id="stcSpaceFilter" style="display:none"><option value="">כל המרחבים</option></select>
+      <div class="stc-multisel-wrap" id="stcSpaceMultiWrap">
+        <button class="stc-multisel-btn" id="stcSpaceMultiBtn" type="button" onclick="toggleSpaceMultiSel()">כל המרחבים ▾</button>
+        <div class="stc-multisel-panel" id="stcSpaceMultiPanel" style="display:none">
+          <label class="stc-multisel-item"><input type="checkbox" id="stcSpaceCheckAll" checked onchange="toggleAllSpaces(this.checked)"> <strong>כל המרחבים</strong></label>
+          <div id="stcSpaceCheckList"></div>
+        </div>
+      </div>
     </div>
     <div class="stc-body">
       <div id="stcTableArea"></div>
@@ -31357,7 +31369,7 @@ function computePolyStats(polyCode) {
 
 /* ---------- v8 additions ---------- */
 const EXCLUDED_POLYGON_CODES = new Set([]);
-let showOutsideTrees = true;
+let showOutsideTrees = false;
 
 function normalizeHeight(h) {
   if (h == null || h === '') return null;
@@ -32473,24 +32485,79 @@ function getAllSpaceTypes() {
   return Array.from(types).sort();
 }
 
-let stcViewMode = 'bytype'; // 'bytype' or 'byspace'
+let stcViewMode = 'byspace'; // 'bytype' or 'byspace'
 
 function setSTCMode(mode) {
   stcViewMode = mode;
   document.getElementById('stcModeByType').classList.toggle('active', mode === 'bytype');
   document.getElementById('stcModeBySpace').classList.toggle('active', mode === 'byspace');
   document.getElementById('stcTypeFilter').style.display = mode === 'bytype' ? '' : 'none';
-  document.getElementById('stcSpaceFilter').style.display = mode === 'byspace' ? '' : 'none';
+  const multiWrap = document.getElementById('stcSpaceMultiWrap');
+  if (multiWrap) multiWrap.style.display = mode === 'byspace' ? '' : 'none';
   if (mode === 'byspace') populateSpaceFilter();
   renderSpaceTypeCompare();
 }
 
 function populateSpaceFilter() {
-  const sel = document.getElementById('stcSpaceFilter');
-  if (!sel || !DATA) return;
-  const current = sel.value;
-  sel.innerHTML = `<option value="">${t('all_spaces')}</option>` +
-    DATA.superAreas.map(sa => `<option value="${escHtml(sa.code)}"${sa.code === current ? ' selected' : ''}>${escHtml(sa.code)}</option>`).join('');
+  const list = document.getElementById('stcSpaceCheckList');
+  if (!list || !DATA) return;
+  if (list.innerHTML !== '') return; // preserve existing selections
+  list.innerHTML = DATA.superAreas.map(sa =>
+    `<label class="stc-multisel-item"><input type="checkbox" class="stc-space-chk" value="${escHtml(sa.code)}" checked onchange="onSpaceCheckChange()"> ${escHtml(sa.code)}</label>`
+  ).join('');
+  syncSpaceAllCheck();
+  updateSpaceMultiBtn();
+}
+
+function getSelectedSpaces() {
+  const chks = Array.from(document.querySelectorAll('.stc-space-chk'));
+  if (!chks.length) return [];
+  const checked = chks.filter(c => c.checked).map(c => c.value);
+  if (checked.length === chks.length) return []; // all checked = no filter
+  return checked;
+}
+
+function toggleSpaceMultiSel() {
+  const panel = document.getElementById('stcSpaceMultiPanel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleAllSpaces(checked) {
+  document.querySelectorAll('.stc-space-chk').forEach(c => { c.checked = checked; });
+  syncSpaceAllCheck();
+  updateSpaceMultiBtn();
+  renderSpaceTypeCompare();
+}
+
+function onSpaceCheckChange() {
+  syncSpaceAllCheck();
+  updateSpaceMultiBtn();
+  renderSpaceTypeCompare();
+}
+
+function syncSpaceAllCheck() {
+  const all = document.getElementById('stcSpaceCheckAll');
+  if (!all) return;
+  const chks = Array.from(document.querySelectorAll('.stc-space-chk'));
+  const n = chks.filter(c => c.checked).length;
+  all.checked = n === chks.length;
+  all.indeterminate = n > 0 && n < chks.length;
+}
+
+function updateSpaceMultiBtn() {
+  const btn = document.getElementById('stcSpaceMultiBtn');
+  if (!btn) return;
+  const he = LANG === 'he';
+  const chks = Array.from(document.querySelectorAll('.stc-space-chk'));
+  const n = chks.filter(c => c.checked).length;
+  if (n === 0) {
+    btn.textContent = (he ? 'ללא בחירה' : 'None selected') + ' ▾';
+  } else if (n === chks.length) {
+    btn.textContent = (he ? 'כל המרחבים' : 'All Spaces') + ' ▾';
+  } else {
+    btn.textContent = n + (he ? ' מרחבים' : ' spaces') + ' ▾';
+  }
 }
 
 function buildStcTableBySpace(rows, typeColorMap) {
@@ -32630,6 +32697,10 @@ function buildStcTable(rows, colorMap) {
 
 function renderSpaceTypeCompare() {
   if (!DATA) return;
+  // Sync filter visibility with current mode
+  document.getElementById('stcTypeFilter').style.display = stcViewMode === 'bytype' ? '' : 'none';
+  const mw = document.getElementById('stcSpaceMultiWrap');
+  if (mw) mw.style.display = stcViewMode === 'byspace' ? '' : 'none';
   const colorMap = getSAColorMap();
   const typeColorMap = getTypeColorMap();
   const he = LANG === 'he';
@@ -32639,25 +32710,26 @@ function renderSpaceTypeCompare() {
   if (stcViewMode === 'byspace') {
     // --- BY-SPACE MODE ---
     populateSpaceFilter();
-    const saCode = document.getElementById('stcSpaceFilter').value;
-    if (saCode === '') {
-      // All spaces — one section per space
-      tableArea.innerHTML = DATA.superAreas.map(sa => {
-        const rows = computeSpaceStats(sa.code);
-        if (!rows.length) return '';
-        return `<div class="stc-type-section">
-          <div class="stc-type-title"><span class="stc-swatch" style="background:${colorMap[sa.code]||'#888'}"></span>${escHtml(sa.code)}</div>
-          ${buildStcTableBySpace(rows, typeColorMap)}
-        </div>`;
-      }).join('');
-      updateSTCChartsBySpace('', colorMap, typeColorMap);
-    } else {
-      const rows = computeSpaceStats(saCode);
+    const selectedSpaces = getSelectedSpaces(); // [] = all
+    const spacesToShow = selectedSpaces.length === 0 ? DATA.superAreas.map(sa => sa.code) : selectedSpaces;
+    if (selectedSpaces.length === 1) {
+      // Single space — flat table of types within it
+      const rows = computeSpaceStats(selectedSpaces[0]);
       tableArea.innerHTML = rows.length
         ? buildStcTableBySpace(rows, typeColorMap)
         : `<div class="small" style="padding:10px;color:var(--text2)">${noData}</div>`;
-      updateSTCChartsBySpace(saCode, colorMap, typeColorMap);
+    } else {
+      // All or multiple — one section per (selected) space
+      tableArea.innerHTML = spacesToShow.map(code => {
+        const rows = computeSpaceStats(code);
+        if (!rows.length) return '';
+        return `<div class="stc-type-section">
+          <div class="stc-type-title"><span class="stc-swatch" style="background:${colorMap[code]||'#888'}"></span>${escHtml(code)}</div>
+          ${buildStcTableBySpace(rows, typeColorMap)}
+        </div>`;
+      }).join('');
     }
+    updateSTCChartsBySpace(selectedSpaces, colorMap, typeColorMap);
   } else {
     // --- BY-TYPE MODE (existing) ---
     populateSpaceTypeFilter();
@@ -32682,18 +32754,21 @@ function renderSpaceTypeCompare() {
   }
 }
 
-function updateSTCChartsBySpace(saCode, colorMap, typeColorMap) {
+function updateSTCChartsBySpace(saCodes, colorMap, typeColorMap) {
+  // saCodes: array of selected SA codes; empty array = all spaces
   const he = LANG === 'he';
-  const spaces = DATA.superAreas.map(sa => sa.code);
+  const allSpaceCodes = DATA.superAreas.map(sa => sa.code);
+  const spacesToShow = saCodes.length === 0 ? allSpaceCodes : saCodes;
+  const spaceSAs = spacesToShow.map(code => DATA.superAreas.find(sa => sa.code === code)).filter(Boolean);
   const types = getAllSpaceTypes();
 
-  // Heatmap always same
-  const zVals = types.map(tp => spaces.map(sc => {
+  // Heatmap always shows all spaces (full picture)
+  const zVals = types.map(tp => allSpaceCodes.map(sc => {
     const r = computeSpaceTypeStats(sc, tp);
     return r ? r.totalTrees : 0;
   }));
   Plotly.newPlot('chartSTCHeatmap', [{
-    type: 'heatmap', z: zVals, x: spaces, y: types, colorscale: 'YlGn',
+    type: 'heatmap', z: zVals, x: allSpaceCodes, y: types, colorscale: 'YlGn',
     hovertemplate: `${he?'מרחב':'Space'}: %{x}<br>${he?'סוג':'Type'}: %{y}<br>${he?'עצים':'Trees'}: %{z}<extra></extra>`,
   }], pltLay(he ? 'מטריצת עצים: מרחב × סוג שטח' : 'Tree Matrix: Space × Space Type', {
     xaxis: { title: he?'מרחב':'Space' },
@@ -32701,63 +32776,64 @@ function updateSTCChartsBySpace(saCode, colorMap, typeColorMap) {
     margin: { t: 50, b: 60, l: 200, r: 20 },
   }), pltCfg);
 
-  if (saCode === '') {
-    // All spaces — bars grouped by type, traces = spaces
+  if (saCodes.length !== 1) {
+    // All or multiple spaces — x = types, traces = spaces
+    const suffix = saCodes.length === 0 ? '' : ` (${saCodes.length} ${he?'מרחבים':'spaces'})`;
     Plotly.newPlot('chartSTCTrees',
-      DATA.superAreas.map(sa => ({
+      spaceSAs.map(sa => ({
         name: sa.code, type: 'bar', x: types,
         y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? r.totalTrees : 0; }),
         marker: { color: colorMap[sa.code]||'#888' },
       })),
-      Object.assign(pltLay(he ? 'עצים לפי סוג שטח ומרחב' : 'Trees by Space Type & Space'), {
+      Object.assign(pltLay((he ? 'עצים לפי סוג שטח ומרחב' : 'Trees by Space Type & Space')+suffix), {
         barmode: 'group', xaxis: { title: he?'סוג שטח':'Space Type' }, yaxis: { title: he?'עצים':'Trees' },
       }), pltCfg);
     Plotly.newPlot('chartSTCGirth',
-      DATA.superAreas.map(sa => ({
+      spaceSAs.map(sa => ({
         name: sa.code, type: 'bar', x: types,
         y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.avgGirth||0) : 0; }),
         marker: { color: colorMap[sa.code]||'#888' },
       })),
-      Object.assign(pltLay(he ? 'ממוצע היקף לפי סוג שטח ומרחב' : 'Avg Girth by Space Type & Space'), {
+      Object.assign(pltLay((he ? 'ממוצע היקף לפי סוג שטח ומרחב' : 'Avg Girth by Space Type & Space')+suffix), {
         barmode: 'group', xaxis: { title: he?'סוג שטח':'Space Type' }, yaxis: { title: he?'היקף (ס"מ)':'Girth (cm)' },
       }), pltCfg);
     Plotly.newPlot('chartSTCDensity',
-      DATA.superAreas.map(sa => ({
+      spaceSAs.map(sa => ({
         name: sa.code, type: 'bar', x: types,
         y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.density||0) : 0; }),
         marker: { color: colorMap[sa.code]||'#888' },
       })),
-      Object.assign(pltLay(he ? 'צפיפות לפי סוג שטח ומרחב' : 'Density by Space Type & Space'), {
+      Object.assign(pltLay((he ? 'צפיפות לפי סוג שטח ומרחב' : 'Density by Space Type & Space')+suffix), {
         barmode: 'group', xaxis: { title: he?'סוג שטח':'Space Type' }, yaxis: { title: he?'צפיפות (עצים/acre)':'Density (trees/acre)' },
       }), pltCfg);
     Plotly.newPlot('chartSTCArea',
-      DATA.superAreas.map(sa => ({
+      spaceSAs.map(sa => ({
         name: sa.code, type: 'bar', x: types,
         y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.totalArea||0) : 0; }),
         marker: { color: colorMap[sa.code]||'#888' },
       })),
-      Object.assign(pltLay(he ? 'שטח לפי סוג שטח ומרחב' : 'Area by Space Type & Space'), {
+      Object.assign(pltLay((he ? 'שטח לפי סוג שטח ומרחב' : 'Area by Space Type & Space')+suffix), {
         barmode: 'stack', xaxis: { title: he?'סוג שטח':'Space Type' }, yaxis: { title: he?'שטח (acres)':'Area (acres)' },
       }), pltCfg);
-    // Box: girth distribution per type (all spaces combined)
+    // Box: girth per type within selected spaces
     Plotly.newPlot('chartSTCBox',
       types.map((tp, i) => ({
         type: 'box', name: tp, boxpoints: 'outliers',
         marker: { color: typeColorMap[tp]||'#888' },
-        y: DATA.superAreas.flatMap(sa =>
-          (sa.polygons
+        y: spaceSAs.flatMap(sa =>
+          sa.polygons
             .map(code => DATA.polygons.find(p => p.polygon === code))
             .filter(p => p && p.space_type === tp)
             .flatMap(p => DATA.points.filter(t => t.polygon === p.polygon).map(t => t.girth).filter(g => g && !isNaN(g) && g > 0))
-          )
         ),
       })),
-      Object.assign(pltLay(he ? 'פיזור היקפים לפי סוג שטח (כל המרחבים)' : 'Girth Distribution by Space Type (all spaces)'), {
+      Object.assign(pltLay((he ? 'פיזור היקפים לפי סוג שטח' : 'Girth Distribution by Space Type')+suffix), {
         yaxis: { title: he?'היקף (ס"מ)':'Girth (cm)' },
       }), pltCfg);
     Plotly.newPlot('chartSTCScatter', [], pltLay(''), pltCfg);
   } else {
-    // Specific space — x = types
+    // Single space — x = types
+    const saCode = saCodes[0];
     const rows = computeSpaceStats(saCode);
     const label = ` — ${saCode}`;
     Plotly.newPlot('chartSTCTrees', [
@@ -33005,7 +33081,13 @@ function init() {
   document.getElementById('btnSaveGroup').onclick = saveGroup;
   document.getElementById('btnApplySpacing').onclick = () => { renderAvenues(); updateAll(); };
   document.getElementById('stcTypeFilter').addEventListener('change', renderSpaceTypeCompare);
-  document.getElementById('stcSpaceFilter').addEventListener('change', renderSpaceTypeCompare);
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('stcSpaceMultiWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      const panel = document.getElementById('stcSpaceMultiPanel');
+      if (panel) panel.style.display = 'none';
+    }
+  });
   document.getElementById('btnExportCSV').onclick = exportCSV;
   const updateBtn = document.getElementById('btnUpdateSheets');
   if (updateBtn) updateBtn.onclick = updateFromSheets;
@@ -33073,6 +33155,7 @@ function retranslateUI() {
   const stcModeBySpaceEl = document.getElementById('stcModeBySpace');
   if (stcModeByTypeEl) stcModeByTypeEl.textContent = t('bytype_mode');
   if (stcModeBySpaceEl) stcModeBySpaceEl.textContent = t('byspace_mode');
+  updateSpaceMultiBtn();
   populateSpaceTypeFilter();
   // Tabs
   const tabKeyMap = ['overview', 'polygons_tab', 'super_areas_tab', 'analytics', 'advanced', 'groups', 'compare', 'avenues_tab', 'spatypecmp_tab'];
