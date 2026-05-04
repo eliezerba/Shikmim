@@ -249,9 +249,9 @@ main.fullwidth-mode #mapWrap{display:none}
         <option value="osm+isr250k">OSM + ישראל 1:250k</option>
       </optgroup>
     </select>
-    <label><input type="checkbox" id="chkPolys" checked> <span class="legendDot" style="background:#2563eb"></span> פוליגונים</label>
-    <label><input type="checkbox" id="chkTrees" checked> <span class="legendDot" style="background:#16a34a"></span> עצים</label>
-    <label><input type="checkbox" id="chkLines" checked> <span class="legendDot" style="background:#dc2626"></span> שדרות</label>
+    <label><input type="checkbox" id="chkPolys" checked> <span class="legendDot" style="background:#2563eb"></span> <span id="chkPolysSpan">פוליגונים</span></label>
+    <label><input type="checkbox" id="chkTrees" checked> <span class="legendDot" style="background:#16a34a"></span> <span id="chkTreesSpan">עצים</span></label>
+    <label><input type="checkbox" id="chkLines" checked> <span class="legendDot" style="background:#dc2626"></span> <span id="chkLinesSpan">שדרות</span></label>
     <label><input type="checkbox" id="chkLabels" checked> <span class="legendDot" style="background:#111827"></span> <span id="chkLabelsSpan">תוויות</span></label>
     <div class="row">
       <button id="btnShowAll">הצג הכל</button>
@@ -30019,6 +30019,44 @@ const TRANSLATIONS = {
     stc_title: 'השוואת מרחבים',
     stc_col_type: 'סוג שטח',
     
+    // Basemap & Checkboxes
+    base_maps: 'מפות בסיס',
+    pom_combined: 'POM משולב (1940s)',
+    isr250k_opt: 'ישראל 1:250k (1951)',
+    osm_isr250k_opt: 'OSM + ישראל 1:250k',
+    check_labels: 'תוויות',
+    add_outside_trees: 'הוסף עצים מחוץ לפוליגונים',
+    remove_outside_trees: 'הסר עצים מחוץ לפוליגונים',
+    
+    // Tab descriptions & misc UI
+    advanced_desc: 'ניתוח מתקדם: CDF, Lorenz, מתאמים, שכנות מרחבית ועוד',
+    groups_desc: 'אפשר לאחד פוליגונים לקבוצות עם שם, ולהשוות בין הקבוצות. הנתונים משתנים דינמית עם עצי שדרה.',
+    default_spacing: "מרווח ברירת מחדל (מ')",
+    apply_spacing: 'החל מרווח',
+    
+    // Map popups & status
+    outside_polygons: 'מחוץ לפוליגונים',
+    popup_tree: 'עץ',
+    popup_polygon_lbl: 'פוליגון',
+    popup_girth: 'היקף',
+    popup_height: 'גובה',
+    popup_avenue: 'שדרה',
+    popup_type: 'סוג',
+    popup_length: 'אורך',
+    popup_none: 'ללא',
+    popup_trees_count: 'עצים',
+    popup_from_avenues: 'משדרות',
+    popup_avg_girth: 'ממוצע היקף',
+    popup_area: 'שטח',
+    status_trees: 'עצים',
+    status_polygons: 'פוליגונים',
+    status_avenues: 'שדרות',
+    loading_from_sheet: 'טוען מהגיליון...',
+    sheet_load_error: 'שגיאה בטעינת הגיליון',
+    falling_back: 'טוען נתונים שמורים...',
+    loading_polygons: 'טוען פוליגונים...',
+    loaded_from_sheet: 'נטען מהגיליון',
+    loaded_from_cache: 'נטען מנתונים שמורים',
   },
   en: {
     // UI Headers & Basic
@@ -30143,6 +30181,45 @@ const TRANSLATIONS = {
     byspace_mode: 'By Space',
     stc_title: 'Space Comparison',
     stc_col_type: 'Space Type',
+    
+    // Basemap & Checkboxes
+    base_maps: 'Base Maps',
+    pom_combined: 'POM Combined (1940s)',
+    isr250k_opt: 'Israel 1:250k (1951)',
+    osm_isr250k_opt: 'OSM + Israel 1:250k',
+    check_labels: 'Labels',
+    add_outside_trees: 'Add Trees Outside Polygons',
+    remove_outside_trees: 'Remove Trees Outside Polygons',
+    
+    // Tab descriptions & misc UI
+    advanced_desc: 'Advanced Analysis: CDF, Lorenz, correlations, spatial density & more',
+    groups_desc: 'Merge polygons into named groups and compare. Data dynamically includes avenue trees.',
+    default_spacing: 'Default Spacing (m)',
+    apply_spacing: 'Apply Spacing',
+    
+    // Map popups & status
+    outside_polygons: 'outside polygons',
+    popup_tree: 'Tree',
+    popup_polygon_lbl: 'Polygon',
+    popup_girth: 'Girth',
+    popup_height: 'Height',
+    popup_avenue: 'Avenue',
+    popup_type: 'Type',
+    popup_length: 'Length',
+    popup_none: 'none',
+    popup_trees_count: 'Trees',
+    popup_from_avenues: 'from avenues',
+    popup_avg_girth: 'Avg Girth',
+    popup_area: 'Area',
+    status_trees: 'Trees',
+    status_polygons: 'Polygons',
+    status_avenues: 'Avenues',
+    loading_from_sheet: 'Loading from sheet...',
+    sheet_load_error: 'Error loading sheet',
+    falling_back: 'Loading stored data...',
+    loading_polygons: 'Loading polygons...',
+    loaded_from_sheet: 'Loaded from sheet',
+    loaded_from_cache: 'Loaded from stored data',
   }
 };
 
@@ -31240,13 +31317,13 @@ async function loadData() {
     // Always try to fetch live from Google Sheet so data stays current on every load
     let loadedLive = false;
     try {
-      document.getElementById('statusText').textContent = 'טוען מהגיליון...';
+      document.getElementById('statusText').textContent = t('loading_from_sheet');
       DATA = await buildDataFromSheets();
       loadedLive = true;
       console.log(`Loaded live from Google Sheet: ${DATA.points.length} trees, ${DATA.polygons.length} polygons`);
     } catch (sheetErr) {
       console.warn('Live Google Sheet fetch failed, falling back to embedded data:', sheetErr);
-      document.getElementById('statusText').textContent = 'שגיאה בטעינת הגיליון: ' + sheetErr.message + ' — טוען נתונים שמורים...';
+      document.getElementById('statusText').textContent = t('sheet_load_error') + ': ' + sheetErr.message + ' — ' + t('falling_back');
       const inlineEl = document.getElementById('_dataInline');
       if (inlineEl) {
         DATA = JSON.parse(inlineEl.textContent);
@@ -31262,7 +31339,7 @@ async function loadData() {
 
     // Merge in live ArcGIS geometries without dropping sheet-only polygons/metadata.
     try {
-      document.getElementById('statusText').textContent = 'טוען פוליגונים...';
+      document.getElementById('statusText').textContent = t('loading_polygons');
       const apiPolygons = await loadPolygonsFromAPI();
       DATA.polygons = mergePolygonsFromSheetAndAPI(sheetPolygons, apiPolygons);
     } catch (apiErr) {
@@ -31271,7 +31348,7 @@ async function loadData() {
     loadUserPolygons();
     buildSuperAreas();
     init();
-    const sourceLabel = loadedLive ? ' • נטען מהגיליון' : ' • נטען מנתונים שמורים';
+    const sourceLabel = loadedLive ? ` • ${t('loaded_from_sheet')}` : ` • ${t('loaded_from_cache')}`;
     document.getElementById('statusText').textContent = `${DATA.points.length} ${t('trees')} | ${DATA.polygons.length} ${t('polygons')} | ${DATA.lines.length} ${t('avenues')}${sourceLabel}`;
   } catch (e) {
     document.getElementById('statusText').textContent = t('error_loading') + e.message;
@@ -31481,7 +31558,8 @@ function drawMap() {
     const poly = L.polygon(p.latlons, getPolygonStyle(p.polygon)).addTo(layers.polys);
     const st = computePolyStats(p.polygon);
     const userTag = isUserPolygonObj(p) ? `<span style="color:#b91c1c;font-weight:700">${t('user_polygon_badge')}</span><br>` : '';
-    poly.bindPopup(`<b>${p.polygon} - ${p.space_name_he || ''}</b><br>${userTag}${p.space_type || ''}<br>עצים: ${st.totalTrees} (${st.avenueTrees} משדרות)<br>ממוצע היקף: ${fmt(st.avgGirth)}<br>שטח: ${fmt(st.area)} acres`);
+    const spaceName = LANG === 'he' ? (p.space_name_he || '') : (p.space_name_en || p.space_name_he || '');
+    poly.bindPopup(`<b>${p.polygon} - ${spaceName}</b><br>${userTag}${p.space_type || ''}<br>${t('popup_trees_count')}: ${st.totalTrees} (${st.avenueTrees} ${t('popup_from_avenues')})<br>${t('popup_avg_girth')}: ${fmt(st.avgGirth)}<br>${t('popup_area')}: ${fmt(st.area)} acres`);
     poly.on('click', () => { selectedPolygon = p.polygon; selectedSA = null; updateAll(); });
     if (showLabels) {
       const lat = p.latlons.reduce((a, b) => a + b[0], 0) / p.latlons.length;
@@ -31493,29 +31571,29 @@ function drawMap() {
   });
 
   if (showTrees) {
-    pts.forEach(t => {
-      const isSel = selectedPolygon && t.polygon === selectedPolygon;
-      const isSASel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(t.polygon);
+    pts.forEach(tree => {
+      const isSel = selectedPolygon && tree.polygon === selectedPolygon;
+      const isSASel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(tree.polygon);
       const clr = isSel ? '#14532d' : (isSASel ? '#7c3aed' : '#16a34a');
-      L.circleMarker(t.latlon, { radius: 3.5, color: clr, fillColor: clr, fillOpacity: 0.9, weight: 1 })
-        .bindPopup(`עץ #${t.id}<br>פוליגון: ${t.polygon || 'ללא'}<br>היקף: ${t.girth ?? ''}<br>גובה: ${normalizeHeight(t.height) ?? ''}`)
+      L.circleMarker(tree.latlon, { radius: 3.5, color: clr, fillColor: clr, fillOpacity: 0.9, weight: 1 })
+        .bindPopup(`${t('popup_tree')} #${tree.id}<br>${t('popup_polygon_lbl')}: ${tree.polygon || t('popup_none')}<br>${t('popup_girth')}: ${tree.girth ?? ''}<br>${t('popup_height')}: ${normalizeHeight(tree.height) ?? ''}`)
         .addTo(layers.trees);
     });
-    outsidePts.forEach(t => {
-      L.circleMarker(t.latlon, { radius: 4, color: '#92400e', fillColor: '#d97706', fillOpacity: 0.9, weight: 1 })
-        .bindPopup(`עץ #${t.id} (מחוץ לפוליגונים)<br>היקף: ${t.girth ?? ''}<br>גובה: ${normalizeHeight(t.height) ?? ''}`)
+    outsidePts.forEach(tree => {
+      L.circleMarker(tree.latlon, { radius: 4, color: '#92400e', fillColor: '#d97706', fillOpacity: 0.9, weight: 1 })
+        .bindPopup(`${t('popup_tree')} #${tree.id} (${t('outside_polygons')})<br>${t('popup_girth')}: ${tree.girth ?? ''}<br>${t('popup_height')}: ${normalizeHeight(tree.height) ?? ''}`)
         .addTo(layers.trees);
     });
   }
 
   if (showLines) lns.forEach(l => {
     L.polyline([l.latlon1, l.latlon2], { color: '#dc2626', weight: 3, dashArray: '8,5' })
-      .bindPopup(`שדרה #${l.id}<br>פוליגון: ${l.polygon || 'ללא'}<br>סוג: ${l.type || ''}<br>אורך: ${fmt(l.length)}`)
+      .bindPopup(`${t('popup_avenue')} #${l.id}<br>${t('popup_polygon_lbl')}: ${l.polygon || t('popup_none')}<br>${t('popup_type')}: ${l.type || ''}<br>${t('popup_length')}: ${fmt(l.length)}`)
       .addTo(layers.lines);
   });
 
-  const outsideLabel = showOutsideTrees ? ` (+${outsidePts.length} מחוץ לפוליגונים)` : '';
-  document.getElementById('statusText').textContent = `${pts.length} עצים${outsideLabel} | ${polys.length} פוליגונים | ${lns.length} שדרות`;
+  const outsideLabel = showOutsideTrees ? ` (+${outsidePts.length} ${t('outside_polygons')})` : '';
+  document.getElementById('statusText').textContent = `${pts.length} ${t('status_trees')}${outsideLabel} | ${polys.length} ${t('status_polygons')} | ${lns.length} ${t('status_avenues')}`;
   drawSpaceEllipses();
 }
 
@@ -31867,7 +31945,7 @@ function updateCharts() {
   const colors = ['#16a34a', '#2563eb', '#dc2626', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6', '#6366f1', '#e11d48', '#a3e635', '#0891b2', '#d946ef'];
   const polyGroups = {};
   pts.forEach(t => {
-    const k = t.polygon || 'ללא';
+    const k = t.polygon || (LANG === 'he' ? 'ללא' : 'none');
     if (!polyGroups[k]) polyGroups[k] = { girth: [], height: [] };
     polyGroups[k].girth.push((t.girth != null && t.girth !== 0) ? t.girth : null);
     polyGroups[k].height.push(normalizeHeight(t.height));
@@ -31881,7 +31959,7 @@ function updateCharts() {
 
   // Bar: tree count per polygon
   const counts = {};
-  pts.forEach(t => { const k = t.polygon || 'ללא'; counts[k] = (counts[k] || 0) + 1; });
+  pts.forEach(t => { const k = t.polygon || (LANG === 'he' ? 'ללא' : 'none'); counts[k] = (counts[k] || 0) + 1; });
   Plotly.newPlot('chartBars', [{ x: Object.keys(counts), y: Object.values(counts), type: 'bar', marker: { color: '#2563eb' } }], pltLay(''), pltCfg);
 
   // Histogram: girth
@@ -33029,6 +33107,14 @@ function init() {
   configureUpdateUI();
   initChartHeaders();
   renderAvenues();
+
+  // Apply initial language (handles first-load with default 'en')
+  const doc = document.documentElement;
+  doc.lang = LANG;
+  doc.dir = LANG === 'he' ? 'rtl' : 'ltr';
+  document.getElementById('btnToggleLang').textContent = t('language');
+  retranslateUI();
+
   updateAll();
   fitToData();
 
@@ -33108,12 +33194,10 @@ function init() {
   updateDrawButtons();
 
   // Outside trees toggle
-  document.getElementById('btnToggleOutsideTrees').textContent =
-    showOutsideTrees ? 'הסר עצים מחוץ לפוליגונים' : 'הוסף עצים מחוץ לפוליגונים';
+  document.getElementById('btnToggleOutsideTrees').textContent = t(showOutsideTrees ? 'remove_outside_trees' : 'add_outside_trees');
   document.getElementById('btnToggleOutsideTrees').onclick = () => {
     showOutsideTrees = !showOutsideTrees;
-    document.getElementById('btnToggleOutsideTrees').textContent =
-      showOutsideTrees ? 'הסר עצים מחוץ לפוליגונים' : 'הוסף עצים מחוץ לפוליגונים';
+    document.getElementById('btnToggleOutsideTrees').textContent = t(showOutsideTrees ? 'remove_outside_trees' : 'add_outside_trees');
     drawMap();
   };
 }
@@ -33149,6 +33233,35 @@ function retranslateUI() {
   if (cancelDrawBtn) cancelDrawBtn.textContent = t('cancel_draw_polygon');
   const coordsNote = document.querySelector('.float .small.mt8');
   if (coordsNote) coordsNote.textContent = t('coordinates');
+  // Basemap select options & optgroups
+  const basemapSel = document.getElementById('basemapSel');
+  if (basemapSel) {
+    const bGroups = basemapSel.querySelectorAll('optgroup');
+    if (bGroups[0]) bGroups[0].label = t('base_maps');
+    if (bGroups[2]) bGroups[2].label = t('combinations');
+    const optOsm = basemapSel.querySelector('option[value="osm"]');
+    if (optOsm) optOsm.textContent = t('modern_osm');
+    const optSat = basemapSel.querySelector('option[value="sat"]');
+    if (optSat) optSat.textContent = t('satellite');
+    const optPalCombined = basemapSel.querySelector('option[value="pal-1940s"]');
+    if (optPalCombined) optPalCombined.textContent = t('pom_combined');
+    const optIsr = basemapSel.querySelector('option[value="isr250k"]');
+    if (optIsr) optIsr.textContent = t('isr250k_opt');
+    const optOsmIsr = basemapSel.querySelector('option[value="osm+isr250k"]');
+    if (optOsmIsr) optOsmIsr.textContent = t('osm_isr250k_opt');
+  }
+  // Checkbox labels
+  const chkPolysSpan = document.getElementById('chkPolysSpan');
+  const chkTreesSpan = document.getElementById('chkTreesSpan');
+  const chkLinesSpan = document.getElementById('chkLinesSpan');
+  const chkLabelsSpan = document.getElementById('chkLabelsSpan');
+  if (chkPolysSpan) chkPolysSpan.textContent = t('polygons');
+  if (chkTreesSpan) chkTreesSpan.textContent = t('trees');
+  if (chkLinesSpan) chkLinesSpan.textContent = t('avenues');
+  if (chkLabelsSpan) chkLabelsSpan.textContent = t('check_labels');
+  // Outside trees button
+  const outsideTreesBtn = document.getElementById('btnToggleOutsideTrees');
+  if (outsideTreesBtn) outsideTreesBtn.textContent = t(showOutsideTrees ? 'remove_outside_trees' : 'add_outside_trees');
   // Ellipses button
   const ellipsesBtn = document.getElementById('btnToggleSpaceEllipses');
   if (ellipsesBtn) ellipsesBtn.textContent = t(spaceEllipsesActive ? 'hide_space_ellipses' : 'show_space_ellipses');
@@ -33189,6 +33302,40 @@ function retranslateUI() {
   // Other labels and descriptive text
   const descOverview = document.querySelector('.tab[id="overview"] .card p');
   if (descOverview) descOverview.textContent = t('no_data');
+  // Tab descriptions
+  const polyTabDesc = document.querySelector('#polygons .small.mb8');
+  if (polyTabDesc) polyTabDesc.textContent = t('click_polygon');
+  const saTabDesc = document.querySelector('#superareas .small.mb8');
+  if (saTabDesc) saTabDesc.textContent = t('super_area_advanced');
+  const advancedDescEl = document.getElementById('advancedDesc');
+  if (advancedDescEl) advancedDescEl.textContent = t('advanced_desc');
+  const groupsDescEl = document.getElementById('groupsDesc');
+  if (groupsDescEl) groupsDescEl.textContent = t('groups_desc');
+  const compareDescEl = document.getElementById('compareDesc');
+  if (compareDescEl) compareDescEl.textContent = t('choose_units');
+  const avenuesDescEl = document.getElementById('avenuesDesc');
+  if (avenuesDescEl) avenuesDescEl.textContent = t('avenue_def');
+  // Compare tab labels & buttons
+  const labelSideAEl = document.getElementById('labelSideA');
+  if (labelSideAEl) labelSideAEl.textContent = t('side_a');
+  const labelSideBEl = document.getElementById('labelSideB');
+  if (labelSideBEl) labelSideBEl.textContent = t('side_b');
+  const filterSpaceTypeLabelEl = document.getElementById('filterSpaceTypeLabel');
+  if (filterSpaceTypeLabelEl) filterSpaceTypeLabelEl.textContent = t('filter_space_type');
+  const filterSALabelEl = document.getElementById('filterSALabel');
+  if (filterSALabelEl) filterSALabelEl.textContent = t('filter_sa');
+  const btnCompareEl = document.getElementById('btnCompare');
+  if (btnCompareEl) btnCompareEl.textContent = t('compare_btn');
+  // Groups tab
+  const groupNameInput = document.getElementById('groupName');
+  if (groupNameInput) groupNameInput.placeholder = t('group_name');
+  const btnSaveGroupEl = document.getElementById('btnSaveGroup');
+  if (btnSaveGroupEl) btnSaveGroupEl.textContent = t('save_group');
+  // Avenues tab
+  const defaultSpacingLabelEl = document.getElementById('defaultSpacingLabel');
+  if (defaultSpacingLabelEl) defaultSpacingLabelEl.textContent = t('default_spacing');
+  const btnApplySpacingEl = document.getElementById('btnApplySpacing');
+  if (btnApplySpacingEl) btnApplySpacingEl.textContent = t('apply_spacing');
   // Chart titles and info buttons
   refreshChartTitles();
 }
