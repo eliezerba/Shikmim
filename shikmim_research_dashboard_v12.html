@@ -1,5 +1,5 @@
 ﻿<!doctype html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -214,7 +214,7 @@ main.fullwidth-mode #mapWrap{display:none}
 <header>
   <span>דשבורד מחקרי &mdash; שקמים, פוליגונים ומרחבים <small style="font-size:0.7em;opacity:0.75">(v12)</small></span>
   <div style="display:flex;gap:12px;align-items:center">
-    <button id="btnToggleLang" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px">English</button>
+    <button id="btnToggleLang" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px">עברית</button>
     <span class="status" id="statusText">טוען נתונים...</span>
   </div>
 </header>
@@ -29893,7 +29893,7 @@ const POLYGONS_API_URL = 'https://services5.arcgis.com/eJYUV73IZAY87Jwy/ArcGIS/r
 /* Space metadata is loaded dynamically from data.json (polygons sheet) — no hardcoded map. */
 
 /* ---------- Language & Translations ---------- */
-let LANG = localStorage.getItem('shikmim_lang') || 'he';
+let LANG = localStorage.getItem('shikmim_lang') || 'en';
 const TRANSLATIONS = {
   he: {
     // UI Headers & Basic
@@ -31286,7 +31286,7 @@ function buildSuperAreas() {
     const code = p.space_code ? String(p.space_code).trim() : null;
     if (!code) return; // no Area value — polygon not part of any space
     // Space name = exactly the value in the Area column (=code). No invented names.
-    if (!saMap[code]) saMap[code] = { code, polygons: [] };
+    if (!saMap[code]) saMap[code] = { code, polygons: [], name_he: p.space_name_he || null, name_en: p.space_name || null };
     saMap[code].polygons.push(p.polygon);
   });
   DATA.superAreas = Object.values(saMap);
@@ -31631,7 +31631,7 @@ function updateSelectionDetail() {
   } else if (selectedSA) {
     const sa = DATA.superAreas.find(s => s.code === selectedSA);
     const st = computeSAStats(sa);
-    const saName = st.code;
+    const saName = (LANG==='he' ? sa.name_he : sa.name_en) || sa.code;
 
     // Build space-type breakdown table
     const stypeMap = {};
@@ -31734,7 +31734,7 @@ function renderPolyList() {
     const isUser = isUserPolygonObj(p);
     return `<div class="poly-item ${selectedPolygon === p.polygon ? 'selected' : ''} ${isUser ? 'user-poly' : ''}" data-poly="${p.polygon}">
       <span class="code">${p.polygon}</span>
-      <span class="info"><span class="name">${p.space_name_he || p.space_name || ''}${isUser ? ` <b style="color:#b91c1c">(${t('user_polygon_badge')})</b>` : ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | ${t('avg_density')}: ${fmt(st.density, 3)}</span>
+      <span class="info"><span class="name">${LANG==='he' ? (p.space_name_he||p.space_name||'') : (p.space_name||p.space_name_he||'')}${isUser ? ` <b style="color:#b91c1c">(${t('user_polygon_badge')})</b>` : ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | ${t('avg_density')}: ${fmt(st.density, 3)}</span>
       <span class="trees-badge">${st.totalTrees} ${t('trees')}</span>
     </div>`;
   }).join('');
@@ -31754,7 +31754,7 @@ function renderSAList() {
   container.innerHTML = DATA.superAreas.map(sa => {
     const st = computeSAStats(sa);
     return `<div class="sa-card ${selectedSA === sa.code ? 'selected' : ''}" data-sa="${sa.code}">
-      <h5>${sa.code}</h5>
+      <h5>${sa.code}${(LANG==='he' ? sa.name_he : sa.name_en) ? ` · ${LANG==='he' ? sa.name_he : sa.name_en}` : ''}</h5>
       <div class="sa-polys">${t('polygons')}: ${sa.polygons.join(', ')}</div>
       <div class="sa-stats">
         <div class="sa-stat"><div class="sv">${st.totalTrees}</div>${t('trees')}</div>
@@ -31812,10 +31812,11 @@ function renderSADetail() {
 
 function updateSACharts() {
   const stats = DATA.superAreas.map(computeSAStats);
+  const saLabels = DATA.superAreas.map(sa => (LANG==='he' ? sa.name_he : sa.name_en) || sa.code);
   // Comparison bar chart
   Plotly.newPlot('chartSACompare', [
-    { x: stats.map(s => s.code), y: stats.map(s => s.totalTrees), type: 'bar', name: t('trees'), marker: { color: '#16a34a' } },
-    { x: stats.map(s => s.code), y: stats.map(s => s.avgGirth), type: 'bar', name: t('avg_girth'), yaxis: 'y2', marker: { color: '#f59e0b' } },
+    { x: saLabels, y: stats.map(s => s.totalTrees), type: 'bar', name: t('trees'), marker: { color: '#16a34a' } },
+    { x: saLabels, y: stats.map(s => s.avgGirth), type: 'bar', name: t('avg_girth'), yaxis: 'y2', marker: { color: '#f59e0b' } },
   ], Object.assign(pltLay(t('super_area_comparison')), {
     barmode: 'group',
     yaxis: { title: t('trees') },
@@ -31824,12 +31825,12 @@ function updateSACharts() {
 
   // Radar chart (polar bar)
   const categories = [t('trees') + ' (÷10)', t('area_acres') + ' (÷100)', t('avg_girth'), t('median_girth'), t('avg_height'), t('avg_density') + '×100'];
-  const radarTraces = stats.map(s => ({
+  const radarTraces = stats.map((s, i) => ({
     type: 'scatterpolar',
     r: [s.totalTrees / 10, s.totalArea / 100, s.avgGirth || 0, s.medianGirth || 0, (s.avgHeight || 0) / 10, s.density * 100],
     theta: categories,
     fill: 'toself',
-    name: s.code,
+    name: saLabels[i],
   }));
   Plotly.newPlot('chartSARadar', radarTraces, pltLay(t('super_area_radar')), pltCfg);
 }
@@ -31929,23 +31930,25 @@ function updateAdvancedCharts() {
   const polyStats = DATA.polygons.filter(p => !isUserPolygonObj(p)).map(p => computePolyStats(p.polygon));
 
   // Treemap: area proportional — branchvalues:'remainder' is most reliable; parent values=0
-  const tmLabels  = ['כל השטחים'];
+  const tmRoot    = LANG === 'he' ? 'כל השטחים' : 'All Areas';
+  const tmLabels  = [tmRoot];
   const tmParents = [''];
   const tmValues  = [0];
   const tmCustom  = [LANG === 'he' ? 'כל הפוליגונים' : 'All polygons'];
 
   DATA.superAreas.forEach(sa => {
-    tmLabels.push(sa.code);
-    tmParents.push('כל השטחים');
+    const saLabel = (LANG==='he' ? sa.name_he : sa.name_en) || sa.code;
+    tmLabels.push(saLabel);
+    tmParents.push(tmRoot);
     tmValues.push(0);
-    tmCustom.push(sa.code);
+    tmCustom.push(saLabel);
     sa.polygons.forEach(code => {
       const p = DATA.polygons.find(x => x.polygon === code);
       const st = computePolyStats(code);
       tmLabels.push(code);
-      tmParents.push(sa.code);
+      tmParents.push(saLabel);
       tmValues.push(parseFloat((p?.area_acres || 1).toFixed(4)));
-      tmCustom.push(`${p?.space_name_he || ''} | ${st.totalTrees} ${t('trees')}`);
+      tmCustom.push(`${(LANG==='he' ? p?.space_name_he : p?.space_name) || ''} | ${st.totalTrees} ${t('trees')}`);
     });
   });
 
@@ -32190,7 +32193,7 @@ function populateCmpSelect(typeSelId, valSelId) {
     DATA.superAreas.forEach(sa => {
       const opt = document.createElement('option');
       opt.value = sa.code;
-      opt.textContent = sa.code;
+      opt.textContent = (LANG==='he' ? sa.name_he : sa.name_en) || sa.code;
       sel.appendChild(opt);
     });
   }
@@ -32393,7 +32396,7 @@ function initCompareUI() {
   types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; stSel.appendChild(o); });
 
   const saSel = document.getElementById('cmpFilterSA');
-  DATA.superAreas.forEach(sa => { const o = document.createElement('option'); o.value = sa.code; o.textContent = sa.code; saSel.appendChild(o); });
+  DATA.superAreas.forEach(sa => { const o = document.createElement('option'); o.value = sa.code; o.textContent = (LANG==='he' ? sa.name_he : sa.name_en) || sa.code; saSel.appendChild(o); });
 
   document.getElementById('cmpTypeA').addEventListener('change', () => populateCmpSelect('cmpTypeA', 'cmpSelA'));
   document.getElementById('cmpTypeB').addEventListener('change', () => populateCmpSelect('cmpTypeB', 'cmpSelB'));
@@ -32503,7 +32506,7 @@ function populateSpaceFilter() {
   if (!list || !DATA) return;
   if (list.innerHTML !== '') return; // preserve existing selections
   list.innerHTML = DATA.superAreas.map(sa =>
-    `<label class="stc-multisel-item"><input type="checkbox" class="stc-space-chk" value="${escHtml(sa.code)}" checked onchange="onSpaceCheckChange()"> ${escHtml(sa.code)}</label>`
+    `<label class="stc-multisel-item"><input type="checkbox" class="stc-space-chk" value="${escHtml(sa.code)}" checked onchange="onSpaceCheckChange()"> ${escHtml((LANG==='he' ? sa.name_he : sa.name_en) || sa.code)}</label>`
   ).join('');
   syncSpaceAllCheck();
   updateSpaceMultiBtn();
@@ -33157,6 +33160,23 @@ function retranslateUI() {
   if (stcModeBySpaceEl) stcModeBySpaceEl.textContent = t('byspace_mode');
   updateSpaceMultiBtn();
   populateSpaceTypeFilter();
+  // Re-populate SA filter in compare tab and space multi-select list with updated language
+  const cmpSaFilter = document.getElementById('cmpFilterSA');
+  if (cmpSaFilter && DATA) {
+    const prevVal = cmpSaFilter.value;
+    cmpSaFilter.innerHTML = `<option value="">${t('all_spaces')}</option>`;
+    DATA.superAreas.forEach(sa => {
+      const o = document.createElement('option');
+      o.value = sa.code;
+      o.textContent = (LANG==='he' ? sa.name_he : sa.name_en) || sa.code;
+      if (sa.code === prevVal) o.selected = true;
+      cmpSaFilter.appendChild(o);
+    });
+  }
+  populateCmpSelect('cmpTypeA', 'cmpSelA');
+  populateCmpSelect('cmpTypeB', 'cmpSelB');
+  const stcList = document.getElementById('stcSpaceCheckList');
+  if (stcList) { stcList.innerHTML = ''; populateSpaceFilter(); }
   // Tabs
   const tabKeyMap = ['overview', 'polygons_tab', 'super_areas_tab', 'analytics', 'advanced', 'groups', 'compare', 'avenues_tab', 'spatypecmp_tab'];
   document.querySelectorAll('.tabbtn').forEach((btn, i) => btn.textContent = t(tabKeyMap[i]));
