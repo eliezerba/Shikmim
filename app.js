@@ -2442,6 +2442,7 @@ function updateAll() {
   updateAdvancedCharts();
   updateSACharts();
   updateGroupsChart();
+  if (typeof renderSpaceTypeCompare === 'function') renderSpaceTypeCompare();
 }
 
 function configureUpdateUI() {
@@ -2486,6 +2487,9 @@ async function updateFromSheets() {
       buildSuperAreas();
       _polyStatsCache = {};
       _saStatsCache = {};
+      // Reset space filter so it regenerates with updated space list
+      const stcList = document.getElementById('stcSpaceCheckList');
+      if (stcList) stcList.innerHTML = '';
       updateAll();
       
       status.textContent = '✓ ' + t('success_update') + ' ' + (DATA.lastUpdated ? new Date(DATA.lastUpdated).toLocaleString('he-IL') : '');

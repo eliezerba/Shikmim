@@ -422,6 +422,7 @@ main.fullwidth-mode #mapWrap{display:none}
       <div class="stc-charts-grid">
         <div id="chartSTCTrees" class="stc-chart-half"></div>
         <div id="chartSTCGirth" class="stc-chart-half"></div>
+        <div id="chartSTCHeight" class="stc-chart-half"></div>
         <div id="chartSTCDensity" class="stc-chart-half"></div>
         <div id="chartSTCArea" class="stc-chart-half"></div>
       </div>
@@ -32497,6 +32498,7 @@ function updateAll() {
   updateAdvancedCharts();
   updateSACharts();
   updateGroupsChart();
+  renderSpaceTypeCompare();
 }
 
 function configureUpdateUI() {
@@ -32541,6 +32543,9 @@ async function updateFromSheets() {
       buildSuperAreas();
       _polyStatsCache = {};
       _saStatsCache = {};
+      // Reset space filter so it regenerates with updated space list
+      const stcList = document.getElementById('stcSpaceCheckList');
+      if (stcList) stcList.innerHTML = '';
       updateAll();
       
       status.textContent = '✓ ' + t('success_update') + ' ' + (DATA.lastUpdated ? new Date(DATA.lastUpdated).toLocaleString('he-IL') : '');
@@ -32646,27 +32651,27 @@ function buildStcTableBySpace(rows, typeColorMap) {
   const he = LANG === 'he';
   const hdr = (k) => he ? ({
     type: 'סוג שטח', polys: 'פוליגונים', mapped: 'עצים ממופים', avenue: 'עצי שדרה',
-    total: 'סה"כ עצים', avg_g: 'ממוצע היקף', med_g: 'חציון היקף', minmax: 'מינ–מקס',
-    avg_h: 'ממוצע גובה', area: 'שטח (acres)', dens: 'צפיפות',
+    total: 'סה"כ עצים', avg_g: 'ממוצע היקף', med_g: 'חציון היקף', std_g: 'σ היקף', minmax: 'מינ–מקס',
+    avg_h: 'ממוצע גובה', std_h: 'σ גובה', area: 'שטח (acres)', dens: 'צפיפות',
   }[k]) : ({
     type: 'Space Type', polys: 'Polygons', mapped: 'Mapped Trees', avenue: 'Avenue Trees',
-    total: 'Total Trees', avg_g: 'Avg Girth', med_g: 'Median Girth', minmax: 'Min–Max',
-    avg_h: 'Avg Height', area: 'Area (acres)', dens: 'Density',
+    total: 'Total Trees', avg_g: 'Avg Girth', med_g: 'Median Girth', std_g: 'σ Girth', minmax: 'Min–Max',
+    avg_h: 'Avg Height', std_h: 'σ Height', area: 'Area (acres)', dens: 'Density',
   }[k]);
   return `<div style="overflow-x:auto"><table class="stc-table">
     <thead><tr>
       <th>${hdr('type')}</th><th>${hdr('polys')}</th>
       <th>${hdr('mapped')}</th><th>${hdr('avenue')}</th><th>${hdr('total')}</th>
-      <th>${hdr('avg_g')}</th><th>${hdr('med_g')}</th><th>${hdr('minmax')}</th>
-      <th>${hdr('avg_h')}</th><th>${hdr('area')}</th><th>${hdr('dens')}</th>
+      <th>${hdr('avg_g')}</th><th>${hdr('med_g')}</th><th>${hdr('std_g')}</th><th>${hdr('minmax')}</th>
+      <th>${hdr('avg_h')}</th><th>${hdr('std_h')}</th><th>${hdr('area')}</th><th>${hdr('dens')}</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
       <td class="stc-sa-cell"><span class="stc-swatch" style="background:${typeColorMap[r.spaceType]||'#888'}"></span>${escHtml(r.spaceType)}</td>
       <td class="stc-polys-cell">${r.polyCodes.map(escHtml).join(', ')} <em>(${r.polyCount})</em></td>
       <td>${r.treeCount}</td><td>${r.avenueTrees}</td><td><strong>${r.totalTrees}</strong></td>
-      <td>${fmt(r.avgGirth)}</td><td>${fmt(r.medianGirth)}</td>
+      <td>${fmt(r.avgGirth)}</td><td>${fmt(r.medianGirth)}</td><td>${fmt(r.stdGirth)}</td>
       <td>${fmt(r.minGirth)}–${fmt(r.maxGirth)}</td>
-      <td>${fmt(r.avgHeight)}</td><td>${fmt(r.totalArea)}</td><td>${fmt(r.density,3)}</td>
+      <td>${fmt(r.avgHeight)}</td><td>${fmt(r.stdHeight)}</td><td>${fmt(r.totalArea)}</td><td>${fmt(r.density,3)}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
 }
@@ -32742,8 +32747,11 @@ function computeSpaceTypeStats(saCode, spaceType) {
     minGirth: arrMin(girths),
     maxGirth: arrMax(girths),
     avgHeight: mean(heights),
+    medianHeight: median(heights),
+    stdHeight: stddev(heights),
     density: totalArea > 0 ? (treeCount + avenueTrees) / totalArea : 0,
     girths,
+    heights,
   };
 }
 
@@ -32751,27 +32759,27 @@ function buildStcTable(rows, colorMap) {
   const he = LANG === 'he';
   const hdr = (k) => he ? ({
     space: 'מרחב', polys: 'פוליגונים', mapped: 'עצים ממופים', avenue: 'עצי שדרה',
-    total: 'סה"כ עצים', avg_g: 'ממוצע היקף', med_g: 'חציון היקף', minmax: 'מינ–מקס',
-    avg_h: 'ממוצע גובה', area: 'שטח (acres)', dens: 'צפיפות',
+    total: 'סה"כ עצים', avg_g: 'ממוצע היקף', med_g: 'חציון היקף', std_g: 'σ היקף', minmax: 'מינ–מקס',
+    avg_h: 'ממוצע גובה', std_h: 'σ גובה', area: 'שטח (acres)', dens: 'צפיפות',
   }[k]) : ({
     space: 'Space', polys: 'Polygons', mapped: 'Mapped Trees', avenue: 'Avenue Trees',
-    total: 'Total Trees', avg_g: 'Avg Girth', med_g: 'Median Girth', minmax: 'Min–Max',
-    avg_h: 'Avg Height', area: 'Area (acres)', dens: 'Density',
+    total: 'Total Trees', avg_g: 'Avg Girth', med_g: 'Median Girth', std_g: 'σ Girth', minmax: 'Min–Max',
+    avg_h: 'Avg Height', std_h: 'σ Height', area: 'Area (acres)', dens: 'Density',
   }[k]);
   return `<div style="overflow-x:auto"><table class="stc-table">
     <thead><tr>
       <th>${hdr('space')}</th><th>${hdr('polys')}</th>
       <th>${hdr('mapped')}</th><th>${hdr('avenue')}</th><th>${hdr('total')}</th>
-      <th>${hdr('avg_g')}</th><th>${hdr('med_g')}</th><th>${hdr('minmax')}</th>
-      <th>${hdr('avg_h')}</th><th>${hdr('area')}</th><th>${hdr('dens')}</th>
+      <th>${hdr('avg_g')}</th><th>${hdr('med_g')}</th><th>${hdr('std_g')}</th><th>${hdr('minmax')}</th>
+      <th>${hdr('avg_h')}</th><th>${hdr('std_h')}</th><th>${hdr('area')}</th><th>${hdr('dens')}</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
       <td class="stc-sa-cell"><span class="stc-swatch" style="background:${colorMap[r.saCode]||'#888'}"></span>${escHtml(r.saCode)}</td>
       <td class="stc-polys-cell">${r.polyCodes.map(escHtml).join(', ')} <em>(${r.polyCount})</em></td>
       <td>${r.treeCount}</td><td>${r.avenueTrees}</td><td><strong>${r.totalTrees}</strong></td>
-      <td>${fmt(r.avgGirth)}</td><td>${fmt(r.medianGirth)}</td>
+      <td>${fmt(r.avgGirth)}</td><td>${fmt(r.medianGirth)}</td><td>${fmt(r.stdGirth)}</td>
       <td>${fmt(r.minGirth)}–${fmt(r.maxGirth)}</td>
-      <td>${fmt(r.avgHeight)}</td><td>${fmt(r.totalArea)}</td><td>${fmt(r.density,3)}</td>
+      <td>${fmt(r.avgHeight)}</td><td>${fmt(r.stdHeight)}</td><td>${fmt(r.totalArea)}</td><td>${fmt(r.density,3)}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
 }
@@ -32878,6 +32886,20 @@ function updateSTCChartsBySpace(saCodes, colorMap, typeColorMap) {
       Object.assign(pltLay((he ? 'ממוצע היקף לפי סוג שטח ומרחב' : 'Avg Girth by Space Type & Space')+suffix), {
         barmode: 'group', xaxis: { title: he?'סוג שטח':'Space Type' }, yaxis: { title: he?'היקף (ס"מ)':'Girth (cm)' },
       }), pltCfg);
+    Plotly.newPlot('chartSTCHeight', [
+      ...spaceSAs.map(sa => ({
+        name: sa.code + (he?' ממוצע':' Avg'), type: 'bar', x: types,
+        y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.avgHeight||0) : 0; }),
+        marker: { color: colorMap[sa.code]||'#888' },
+      })),
+      ...spaceSAs.map(sa => ({
+        name: sa.code + ' σ', type: 'bar', x: types,
+        y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.stdHeight||0) : 0; }),
+        marker: { color: colorMap[sa.code]||'#888', opacity: 0.5 },
+      })),
+    ], Object.assign(pltLay((he ? 'גובה לפי סוג שטח ומרחב' : 'Height by Space Type & Space')+suffix), {
+      barmode: 'group', xaxis: { title: he?'סוג שטח':'Space Type' }, yaxis: { title: he?'גובה (ס"מ)':'Height (cm)' },
+    }), pltCfg);
     Plotly.newPlot('chartSTCDensity',
       spaceSAs.map(sa => ({
         name: sa.code, type: 'bar', x: types,
@@ -32926,8 +32948,15 @@ function updateSTCChartsBySpace(saCodes, colorMap, typeColorMap) {
     Plotly.newPlot('chartSTCGirth', [
       { x:rows.map(r=>r.spaceType), y:rows.map(r=>r.avgGirth||0), type:'bar', name:he?'ממוצע':'Avg', marker:{color:rows.map(r=>typeColorMap[r.spaceType]||'#888')} },
       { x:rows.map(r=>r.spaceType), y:rows.map(r=>r.medianGirth||0), type:'bar', name:he?'חציון':'Median', marker:{color:'#94a3b8', opacity:0.7} },
+      { x:rows.map(r=>r.spaceType), y:rows.map(r=>r.stdGirth||0), type:'bar', name:'σ', marker:{color:'#f59e0b', opacity:0.7} },
     ], Object.assign(pltLay((he?'היקף לפי סוג שטח ':'Girth by Space Type ')+label), {
       barmode:'group', xaxis:{title:he?'סוג שטח':'Space Type'}, yaxis:{title:he?'היקף (ס"מ)':'Girth (cm)'},
+    }), pltCfg);
+    Plotly.newPlot('chartSTCHeight', [
+      { x:rows.map(r=>r.spaceType), y:rows.map(r=>r.avgHeight||0), type:'bar', name:he?'ממוצע גובה':'Avg Height', marker:{color:rows.map(r=>typeColorMap[r.spaceType]||'#888')} },
+      { x:rows.map(r=>r.spaceType), y:rows.map(r=>r.stdHeight||0), type:'bar', name:'σ', marker:{color:'#8b5cf6', opacity:0.7} },
+    ], Object.assign(pltLay((he?'גובה לפי סוג שטח ':'Height by Space Type ')+label), {
+      barmode:'group', xaxis:{title:he?'סוג שטח':'Space Type'}, yaxis:{title:he?'גובה (ס"מ)':'Height (cm)'},
     }), pltCfg);
     Plotly.newPlot('chartSTCDensity', [
       { x:rows.map(r=>r.spaceType), y:rows.map(r=>r.density||0), type:'bar', marker:{color:rows.map(r=>typeColorMap[r.spaceType]||'#888')} },
@@ -33006,6 +33035,21 @@ function updateSTCCharts(spaceType, colorMap) {
       Object.assign(pltLay(he ? 'ממוצע היקף לפי מרחב וסוג שטח' : 'Avg Girth by Space & Type'), {
         barmode: 'group', xaxis: { title: he?'מרחב':'Space' }, yaxis: { title: he?'היקף (ס"מ)':'Girth (cm)' },
       }), pltCfg);
+    // Grouped bar: avg height + std dev height
+    Plotly.newPlot('chartSTCHeight', [
+      ...types.map((tp, i) => ({
+        name: tp + (he?' ממוצע':' Avg'), type: 'bar', x: spaces,
+        y: spaces.map(sc => { const r = computeSpaceTypeStats(sc, tp); return r ? (r.avgHeight||0) : 0; }),
+        marker: { color: SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length] },
+      })),
+      ...types.map((tp, i) => ({
+        name: tp + ' σ', type: 'bar', x: spaces,
+        y: spaces.map(sc => { const r = computeSpaceTypeStats(sc, tp); return r ? (r.stdHeight||0) : 0; }),
+        marker: { color: SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length], opacity: 0.5 },
+      })),
+    ], Object.assign(pltLay(he ? 'גובה לפי מרחב וסוג שטח' : 'Height by Space & Type'), {
+      barmode: 'group', xaxis: { title: he?'מרחב':'Space' }, yaxis: { title: he?'גובה (ס"מ)':'Height (cm)' },
+    }), pltCfg);
     // Grouped bar: density
     Plotly.newPlot('chartSTCDensity',
       types.map((tp, i) => ({
@@ -33050,12 +33094,20 @@ function updateSTCCharts(spaceType, colorMap) {
     ], Object.assign(pltLay((he?'עצים לפי מרחב ':'Trees by Space ')+label), {
       barmode:'stack', xaxis:{title:he?'מרחב':'Space'}, yaxis:{title:he?'עצים':'Trees'},
     }), pltCfg);
-    // Grouped bar: avg girth + median
+    // Grouped bar: avg girth + median + std dev
     Plotly.newPlot('chartSTCGirth', [
       { x:rows.map(r=>r.saCode), y:rows.map(r=>r.avgGirth||0), type:'bar', name:he?'ממוצע':'Avg', marker:{color:colors} },
       { x:rows.map(r=>r.saCode), y:rows.map(r=>r.medianGirth||0), type:'bar', name:he?'חציון':'Median', marker:{color:'#94a3b8', opacity:0.7} },
+      { x:rows.map(r=>r.saCode), y:rows.map(r=>r.stdGirth||0), type:'bar', name:'σ', marker:{color:'#f59e0b', opacity:0.7} },
     ], Object.assign(pltLay((he?'היקף לפי מרחב ':'Girth by Space ')+label), {
       barmode:'group', xaxis:{title:he?'מרחב':'Space'}, yaxis:{title:he?'היקף (ס"מ)':'Girth (cm)'},
+    }), pltCfg);
+    // Bar: avg height + std dev height
+    Plotly.newPlot('chartSTCHeight', [
+      { x:rows.map(r=>r.saCode), y:rows.map(r=>r.avgHeight||0), type:'bar', name:he?'ממוצע גובה':'Avg Height', marker:{color:colors} },
+      { x:rows.map(r=>r.saCode), y:rows.map(r=>r.stdHeight||0), type:'bar', name:'σ', marker:{color:'#8b5cf6', opacity:0.7} },
+    ], Object.assign(pltLay((he?'גובה לפי מרחב ':'Height by Space ')+label), {
+      barmode:'group', xaxis:{title:he?'מרחב':'Space'}, yaxis:{title:he?'גובה (ס"מ)':'Height (cm)'},
     }), pltCfg);
     // Bar: density
     Plotly.newPlot('chartSTCDensity', [
