@@ -1328,9 +1328,11 @@ function buildSuperAreas() {
   const saMap = {};
   DATA.polygons.filter(p => !isUserPolygonObj(p)).forEach(p => {
     const code = p.space_code ? String(p.space_code).trim() : null;
-    if (!code) return; // no Area value — polygon not part of any super-area
-    // Super-area name = exactly the value in the Area column (=code). No invented names.
-    if (!saMap[code]) saMap[code] = { code, polygons: [] };
+    if (!code) return; // no Area value — polygon not part of any space
+    // The AREA column value IS the space name — store it as code.
+    // name_he / name_en come from the polygon's own space_name_he / space_name columns
+    // and are available as supplementary info but are NOT the space identity.
+    if (!saMap[code]) saMap[code] = { code, polygons: [], name_he: p.space_name_he || null, name_en: p.space_name || null };
     saMap[code].polygons.push(p.polygon);
   });
   DATA.superAreas = Object.values(saMap);

@@ -31836,7 +31836,7 @@ function renderSAList() {
   container.innerHTML = DATA.superAreas.map(sa => {
     const st = computeSAStats(sa);
     return `<div class="sa-card ${selectedSA === sa.code ? 'selected' : ''}" data-sa="${sa.code}">
-      <h5>${sa.code}${(LANG==='he' ? sa.name_he : sa.name_en) ? ` · ${LANG==='he' ? sa.name_he : sa.name_en}` : ''}</h5>
+      <h5>${sa.code}</h5>
       <div class="sa-polys">${t('polygons')}: ${sa.polygons.join(', ')}</div>
       <div class="sa-stats">
         <div class="sa-stat"><div class="sv">${st.totalTrees}</div>${t('trees')}</div>
@@ -31894,7 +31894,7 @@ function renderSADetail() {
 
 function updateSACharts() {
   const stats = DATA.superAreas.map(computeSAStats);
-  const saLabels = DATA.superAreas.map(sa => (LANG==='he' ? sa.name_he : sa.name_en) || sa.code);
+  const saLabels = DATA.superAreas.map(sa => sa.code);
   // Comparison bar chart
   Plotly.newPlot('chartSACompare', [
     { x: saLabels, y: stats.map(s => s.totalTrees), type: 'bar', name: t('trees'), marker: { color: '#16a34a' } },
@@ -32592,7 +32592,7 @@ function populateSpaceFilter() {
   if (!list || !DATA) return;
   if (list.innerHTML !== '') return; // preserve existing selections
   list.innerHTML = DATA.superAreas.map(sa =>
-    `<label class="stc-multisel-item"><input type="checkbox" class="stc-space-chk" value="${escHtml(sa.code)}" checked onchange="onSpaceCheckChange()"> ${escHtml((LANG==='he' ? sa.name_he : sa.name_en) || sa.code)}</label>`
+    `<label class="stc-multisel-item"><input type="checkbox" class="stc-space-chk" value="${escHtml(sa.code)}" checked onchange="onSpaceCheckChange()"> ${escHtml(sa.code)}</label>`
   ).join('');
   syncSpaceAllCheck();
   updateSpaceMultiBtn();
