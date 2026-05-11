@@ -31107,7 +31107,8 @@ const SHEET_TAB_NAMES = {
 const SHEET_TAB_HEADER_HINTS = {
   trees:        ['X', 'Y'],
   avenues:      ['X_Start', 'X1', 'x1'],
-  polygons:     ['Polygon', 'Space type', 'Coordinates'],
+  polygons:     ['Polygon', 'פוליגון', 'Space type', 'Coordinates'],
+  // Note: 'פוליגון' added so tab validation passes even when sheet headers are in Hebrew
   distribution: ['girth_range', 'Girth Range'],
 };
 
@@ -31213,6 +31214,8 @@ async function buildDataFromSheets() {
     _fetchFirstTab(SHEET_TAB_NAMES.avenues,  SHEET_TAB_HEADER_HINTS.avenues),
     _fetchFirstTab(SHEET_TAB_NAMES.polygons, SHEET_TAB_HEADER_HINTS.polygons),
   ]);
+  // Debug: log actual column headers from polygons tab to help diagnose AREA column name issues
+  console.log('[Sheet] Polygons tab headers:', polysParsed.headers);
 
   // Distribution is optional (used only for histograms).
   // Its tab URL sometimes returns the wrong tab; don't let it abort the whole fetch.
@@ -31267,7 +31270,7 @@ async function buildDataFromSheets() {
       space_name: _sheetGet(r, 'Space Name', 'שם באנגלית', 'Name EN', 'space_name'),
       // AREA column = space grouping key (read live from sheet every load)
       space_code: _spaceCode(
-        _sheetGet(r, 'AREA', 'Area', 'area', '_col4', 'Space Code', 'space_code')
+        _sheetGet(r, 'AREA', 'Area', 'area', 'טור E (מאחד)', 'טור E', '_col4', 'Space Code', 'space_code')
       ),
       space_type: _sheetGet(r, 'Space type', 'סוג', 'Type', 'space_type'),
       area_acres: _sheetGet(r, 'Area (acres)', 'שטח acres', 'area_acres'),
