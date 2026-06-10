@@ -64,6 +64,7 @@ const TRANSLATIONS = {
     groups: 'קבוצות',
     compare: 'השוואה',
     avenues_tab: 'שדרות',
+    space_type_compare_tab: 'השוואת מרחבים',
     
     // Descriptions
     click_polygon: 'לחצו על פוליגון לצפייה מפורטת ולמיקוד על המפה',
@@ -180,6 +181,7 @@ const TRANSLATIONS = {
     groups: 'Groups',
     compare: 'Compare',
     avenues_tab: 'Avenues',
+    space_type_compare_tab: 'Space Comparison',
     
     // Descriptions
     click_polygon: 'Click on a polygon for details and zoom',
@@ -258,6 +260,7 @@ let _polyStatsCache = {};
 let _saStatsCache = {};
 let isDrawingPolygon = false;
 let drawingPoints = [];
+let showSpaceEllipses = false;
 
 const USER_POLYGON_STORAGE_KEY = 'shikmim_user_polygons_v1';
 
@@ -267,6 +270,7 @@ const hasStaticDataFile = !window.location.protocol.startsWith('file');
 const map = L.map('map', { zoomControl: true }).setView([31.67, 34.77], 11);
 const layers = {
   polys: L.layerGroup().addTo(map),
+  spaceEllipses: L.layerGroup().addTo(map),
   trees: L.layerGroup().addTo(map),
   lines: L.layerGroup().addTo(map),
   labels: L.layerGroup().addTo(map),
@@ -302,6 +306,23 @@ function isUserPolygonObj(p) {
 
 function getPolygonByCode(code) {
   return DATA.polygons.find(p => p.polygon === code) || null;
+}
+
+function polygonDisplayName(p, lang = LANG) {
+  const he = String(p?.space_name_he || '').trim();
+  const en = String(p?.space_name || '').trim();
+  const spaceCode = String(p?.space_code || '').trim();
+  const polyCode = String(p?.polygon || '').trim();
+  if (lang === 'he') return he || en || spaceCode || polyCode;
+  return en || he || spaceCode || polyCode;
+}
+
+function superAreaDisplayName(sa, lang = LANG) {
+  const he = String(sa?.name_he || '').trim();
+  const en = String(sa?.name_en || '').trim();
+  const code = String(sa?.code || '').trim();
+  if (lang === 'he') return he || en || code;
+  return en || he || code;
 }
 
 function sanitizeLatLons(latlons) {
@@ -349,14 +370,18 @@ function pointInPolygon(latlon, polygonLatLons) {
 function getPointsForPolygonCode(polyCode) {
   const pObj = getPolygonByCode(polyCode);
   if (!pObj) return [];
-  if (!isUserPolygonObj(pObj)) return DATA.points.filter(t => t.polygon === polyCode);
-  return DATA.points.filter(t => Array.isArray(t.latlon) && pointInPolygon(t.latlon, pObj.latlons));
+  const hasGeometry = Array.isArray(pObj.latlons) && pObj.latlons.length >= 3;
+  if (hasGeometry) {
+    return DATA.points.filter(t => Array.isArray(t.latlon) && pointInPolygon(t.latlon, pObj.latlons));
+  }
+  return DATA.points.filter(t => t.polygon === polyCode);
 }
 
 function getLinesForPolygonCode(polyCode) {
   const pObj = getPolygonByCode(polyCode);
   if (!pObj) return [];
-  if (!isUserPolygonObj(pObj)) return DATA.lines.filter(l => l.polygon === polyCode);
+  const hasGeometry = Array.isArray(pObj.latlons) && pObj.latlons.length >= 3;
+  if (!hasGeometry) return DATA.lines.filter(l => l.polygon === polyCode);
   return DATA.lines.filter(l => {
     if (!Array.isArray(l.latlon1) || !Array.isArray(l.latlon2)) return false;
     if (pointInPolygon(l.latlon1, pObj.latlons) || pointInPolygon(l.latlon2, pObj.latlons)) return true;
@@ -1226,15 +1251,18 @@ async function buildDataFromSheets() {
 
   const polygons = polysParsed.rows.filter(r => _sheetGet(r, 'Polygon', 'פוליגון', 'polygon')).map(r => {
     const code = normalizePolygonCode(_sheetGet(r, 'Polygon', 'פוליגון', 'polygon'));
+    const spaceCode = _spaceCode(
+      _sheetGet(r, 'AREA', 'Area', 'area', 'טור E (מאחד)', 'טור E', '_col4', 'Space Code', 'space_code')
+    );
+    const rawNameHe = String(_sheetGet(r, 'Space Name [HE]', 'שם בעברית', 'Name HE', 'space_name_he') || '').trim();
+    const rawNameEn = String(_sheetGet(r, 'Space Name', 'שם באנגלית', 'Name EN', 'space_name') || '').trim();
     return {
       polygon: code,
       latlons: _parseCoordsStr(_sheetGet(r, 'Coordinates', 'Coords', 'coords')),
-      space_name_he: _sheetGet(r, 'Space Name [HE]', 'שם בעברית', 'Name HE', 'space_name_he'),
-      space_name: _sheetGet(r, 'Space Name', 'שם באנגלית', 'Name EN', 'space_name'),
+      space_name_he: rawNameHe || rawNameEn || spaceCode || code,
+      space_name: rawNameEn || rawNameHe || spaceCode || code,
       // AREA column = super-area grouping key (read live from sheet every load)
-      space_code: _spaceCode(
-        _sheetGet(r, 'AREA', 'Area', 'area', 'טור E (מאחד)', 'טור E', '_col4', 'Space Code', 'space_code')
-      ),
+      space_code: spaceCode,
       space_type: _sheetGet(r, 'Space type', 'סוג', 'Type', 'space_type'),
       area_acres: _sheetGet(r, 'Area (acres)', 'שטח acres', 'area_acres'),
       tree_count_sheet: _sheetGet(r, 'כמות שקמים', 'Tree Count'),
@@ -1254,7 +1282,7 @@ async function buildDataFromSheets() {
     if (polySet.has(code)) return;
     polygons.push({
       polygon: code, latlons: [],
-      space_name_he: '', space_name: '',
+      space_name_he: code, space_name: code,
       space_code: null, // phantom polygon — no Area value in sheet, not part of any super-area
       space_type: '', area_acres: 0,
       tree_count_sheet: null, avenue_count_sheet: null,
@@ -1332,10 +1360,18 @@ function buildSuperAreas() {
     // The AREA column value IS the space name — store it as code.
     // name_he / name_en come from the polygon's own space_name_he / space_name columns
     // and are available as supplementary info but are NOT the space identity.
-    if (!saMap[code]) saMap[code] = { code, polygons: [], name_he: p.space_name_he || null, name_en: p.space_name || null };
+    if (!saMap[code]) saMap[code] = { code, polygons: [], name_he: null, name_en: null };
+    const heName = String(p.space_name_he || '').trim();
+    const enName = String(p.space_name || '').trim();
+    if (!saMap[code].name_he && heName) saMap[code].name_he = heName;
+    if (!saMap[code].name_en && enName) saMap[code].name_en = enName;
     saMap[code].polygons.push(p.polygon);
   });
-  DATA.superAreas = Object.values(saMap);
+  DATA.superAreas = Object.values(saMap).map(sa => ({
+    ...sa,
+    name_he: sa.name_he || sa.code,
+    name_en: sa.name_en || sa.code,
+  }));
 }
 
 function computeSAStats(sa) {
@@ -1353,6 +1389,8 @@ function computeSAStats(sa) {
   }, 0);
   const result = {
     code: sa.code,
+    name_he: sa.name_he || sa.code,
+    name_en: sa.name_en || sa.code,
     polygons: sa.polygons,
     treeCount: pts.length,
     avenueCount: lns.length,
@@ -1393,8 +1431,8 @@ function computePolyStats(polyCode) {
   const areaAcres = pObj?.area_acres || (isUserPolygonObj(pObj) ? polygonAreaAcres(pObj.latlons) : 0);
   const result = {
     polygon: polyCode,
-    name_he: pObj?.space_name_he || '',
-    name_en: pObj?.space_name || '',
+    name_he: polygonDisplayName(pObj, 'he'),
+    name_en: polygonDisplayName(pObj, 'en'),
     space_type: pObj?.space_type || '',
     space_code: pObj?.space_code || '',
     area: areaAcres,
@@ -1428,9 +1466,144 @@ function analysisPolygons(polys) {
   return polys.filter(p => !EXCLUDED_POLYGON_CODES.has(String(p.polygon || '').toUpperCase()));
 }
 
+function spaceEllipseToggleLabel() {
+  return showSpaceEllipses
+    ? (LANG === 'he' ? 'הסתר אליפסות מרחב' : 'Hide space ellipses')
+    : (LANG === 'he' ? 'הצג אליפסות מרחב' : 'Show space ellipses');
+}
+
+function setSpaceEllipseButtonText() {
+  const btn = document.getElementById('btnToggleSpaceEllipses');
+  if (btn) btn.textContent = spaceEllipseToggleLabel();
+}
+
+function computeEllipseFromPointsLatLon(pointsLatLon) {
+  if (!Array.isArray(pointsLatLon) || pointsLatLon.length < 3) return null;
+
+  const meanLat = pointsLatLon.reduce((s, p) => s + p[0], 0) / pointsLatLon.length;
+  const meanLon = pointsLatLon.reduce((s, p) => s + p[1], 0) / pointsLatLon.length;
+  const meanLatRad = meanLat * Math.PI / 180;
+  const metersPerLat = 111320;
+  const metersPerLon = 111320 * Math.cos(meanLatRad);
+  if (!Number.isFinite(metersPerLon) || Math.abs(metersPerLon) < 1e-8) return null;
+
+  const ptsMeters = pointsLatLon.map(([lat, lon]) => [
+    (lon - meanLon) * metersPerLon,
+    (lat - meanLat) * metersPerLat,
+  ]);
+
+  let sxx = 0;
+  let syy = 0;
+  let sxy = 0;
+  for (const [x, y] of ptsMeters) {
+    sxx += x * x;
+    syy += y * y;
+    sxy += x * y;
+  }
+  const n = Math.max(ptsMeters.length - 1, 1);
+  const covXX = sxx / n;
+  const covYY = syy / n;
+  const covXY = sxy / n;
+
+  const trace = covXX + covYY;
+  const det = covXX * covYY - covXY * covXY;
+  const delta = Math.max(0, (trace * trace) / 4 - det);
+  const root = Math.sqrt(delta);
+  const lambda1 = Math.max(trace / 2 + root, 0);
+  const lambda2 = Math.max(trace / 2 - root, 0);
+
+  let vx = 1;
+  let vy = 0;
+  if (Math.abs(covXY) > 1e-10 || Math.abs(lambda1 - covXX) > 1e-10) {
+    vx = covXY;
+    vy = lambda1 - covXX;
+    const norm = Math.hypot(vx, vy) || 1;
+    vx /= norm;
+    vy /= norm;
+  }
+  const angle = Math.atan2(vy, vx);
+
+  const sigmaScale = 2.2;
+  const major = Math.max(Math.sqrt(lambda1) * sigmaScale, 20);
+  const minor = Math.max(Math.sqrt(lambda2) * sigmaScale, 12);
+  if (!Number.isFinite(major) || !Number.isFinite(minor)) return null;
+
+  const steps = 72;
+  const ellipse = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * Math.PI * 2;
+    const ex = major * Math.cos(t);
+    const ey = minor * Math.sin(t);
+    const rx = ex * Math.cos(angle) - ey * Math.sin(angle);
+    const ry = ex * Math.sin(angle) + ey * Math.cos(angle);
+    const lat = meanLat + (ry / metersPerLat);
+    const lon = meanLon + (rx / metersPerLon);
+    ellipse.push([lat, lon]);
+  }
+
+  return {
+    center: [meanLat, meanLon],
+    major,
+    minor,
+    ellipse,
+  };
+}
+
+function drawSpaceEllipses(polysInView) {
+  layers.spaceEllipses.clearLayers();
+  if (!showSpaceEllipses || !Array.isArray(DATA?.superAreas)) return;
+
+  const activePolyCodes = new Set((polysInView || []).map(p => p.polygon));
+  DATA.superAreas.forEach(sa => {
+    const saPolys = DATA.polygons.filter(p => sa.polygons.includes(p.polygon));
+    const visibleSaPolys = saPolys.filter(p => activePolyCodes.has(p.polygon));
+    if (!visibleSaPolys.length) return;
+
+    const ringPoints = [];
+    visibleSaPolys.forEach(p => {
+      if (Array.isArray(p.latlons) && p.latlons.length >= 3) {
+        p.latlons.forEach(ll => ringPoints.push(ll));
+      }
+    });
+    const ellipseData = computeEllipseFromPointsLatLon(ringPoints);
+    if (!ellipseData) return;
+
+    const isSelected = selectedSA === sa.code;
+    const stroke = isSelected ? '#7c2d12' : '#92400e';
+    const fill = isSelected ? '#f97316' : '#fb923c';
+    const poly = L.polygon(ellipseData.ellipse, {
+      color: stroke,
+      weight: isSelected ? 3 : 2,
+      fillColor: fill,
+      fillOpacity: isSelected ? 0.14 : 0.08,
+      dashArray: '7,6',
+    }).addTo(layers.spaceEllipses);
+
+    const title = `${sa.code} - ${superAreaDisplayName(sa)}`;
+    poly.bindPopup(`<b>${title}</b><br>${LANG === 'he' ? 'אליפסה משוערת למרחב' : 'Estimated space ellipse'}<br>${LANG === 'he' ? 'פוליגונים' : 'Polygons'}: ${visibleSaPolys.map(p => p.polygon).join(', ')}`);
+    poly.on('click', () => {
+      selectedSA = sa.code;
+      selectedPolygon = null;
+      updateAll();
+    });
+  });
+}
+
 function outsidePolygonPoints() {
-  const polySet = new Set((DATA.polygons || []).map(p => p.polygon));
-  return DATA.points.filter(t => !t.polygon || !polySet.has(t.polygon));
+  const polys = analysisPolygons(DATA.polygons || []);
+  const geoPolys = polys.filter(p => Array.isArray(p.latlons) && p.latlons.length >= 3);
+  const noGeomPolyCodes = new Set(
+    polys
+      .filter(p => !Array.isArray(p.latlons) || p.latlons.length < 3)
+      .map(p => p.polygon)
+      .filter(Boolean)
+  );
+  return DATA.points.filter(t => {
+    if (!Array.isArray(t.latlon)) return false;
+    if (geoPolys.some(p => pointInPolygon(t.latlon, p.latlons))) return false;
+    // If a polygon exists but has no geometry, rely on coded assignment to avoid false "outside".
+    return !t.polygon || !noGeomPolyCodes.has(t.polygon);
+  });
 }
 
 /* ---------- filtering ---------- */
@@ -1513,7 +1686,7 @@ function drawMap() {
     const poly = L.polygon(p.latlons, getPolygonStyle(p.polygon)).addTo(layers.polys);
     const st = computePolyStats(p.polygon);
     const userTag = isUserPolygonObj(p) ? `<span style="color:#b91c1c;font-weight:700">${t('user_polygon_badge')}</span><br>` : '';
-    poly.bindPopup(`<b>${p.polygon} - ${p.space_name_he || ''}</b><br>${userTag}${p.space_type || ''}<br>עצים: ${st.totalTrees} (${st.avenueTrees} משדרות)<br>ממוצע היקף: ${fmt(st.avgGirth)}<br>שטח: ${fmt(st.area)} acres`);
+    poly.bindPopup(`<b>${p.polygon} - ${polygonDisplayName(p)}</b><br>${userTag}${p.space_type || ''}<br>עצים: ${st.totalTrees} (${st.avenueTrees} משדרות)<br>ממוצע היקף: ${fmt(st.avgGirth)}<br>שטח: ${fmt(st.area)} acres`);
     poly.on('click', () => { selectedPolygon = p.polygon; selectedSA = null; updateAll(); });
     if (showLabels) {
       const lat = p.latlons.reduce((a, b) => a + b[0], 0) / p.latlons.length;
@@ -1523,6 +1696,8 @@ function drawMap() {
         .addTo(layers.labels);
     }
   });
+
+  drawSpaceEllipses(polys);
 
   if (showTrees) {
     pts.forEach(t => {
@@ -1677,7 +1852,7 @@ function updateSelectionDetail() {
       g.avenueTrees += ps.avenueTrees;
       g.area += ps.area || 0;
       // collect raw girth/height values for aggregate stats
-      DATA.points.filter(pt => pt.polygon === polyCode).forEach(pt => {
+      getPointsForPolygonCode(polyCode).forEach(pt => {
         if (pt.girth != null && !isNaN(pt.girth)) g.girths.push(pt.girth);
         const h = normalizeHeight(pt.height);
         if (h != null) g.heights.push(h);
@@ -1765,7 +1940,7 @@ function renderPolyList() {
     const isUser = isUserPolygonObj(p);
     return `<div class="poly-item ${selectedPolygon === p.polygon ? 'selected' : ''} ${isUser ? 'user-poly' : ''}" data-poly="${p.polygon}">
       <span class="code">${p.polygon}</span>
-      <span class="info"><span class="name">${p.space_name_he || p.space_name || ''}${isUser ? ` <b style="color:#b91c1c">(${t('user_polygon_badge')})</b>` : ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | ${t('avg_density')}: ${fmt(st.density, 3)}</span>
+      <span class="info"><span class="name">${polygonDisplayName(p)}${isUser ? ` <b style="color:#b91c1c">(${t('user_polygon_badge')})</b>` : ''}</span><br>${p.space_type || ''} | ${fmt(st.area)} acres | ${t('avg_density')}: ${fmt(st.density, 3)}</span>
       <span class="trees-badge">${st.totalTrees} ${t('trees')}</span>
     </div>`;
   }).join('');
@@ -1785,7 +1960,7 @@ function renderSAList() {
   container.innerHTML = DATA.superAreas.map(sa => {
     const st = computeSAStats(sa);
     return `<div class="sa-card ${selectedSA === sa.code ? 'selected' : ''}" data-sa="${sa.code}">
-      <h5>${sa.code}</h5>
+      <h5>${sa.code} - ${superAreaDisplayName(sa)}</h5>
       <div class="sa-polys">${t('polygons')}: ${sa.polygons.join(', ')}</div>
       <div class="sa-stats">
         <div class="sa-stat"><div class="sv">${st.totalTrees}</div>${t('trees')}</div>
@@ -2086,7 +2261,7 @@ function initGroupsUI() {
   const sel = document.getElementById('groupPolys');
   sel.innerHTML = '';
   DATA.polygons.filter(p => !EXCLUDED_POLYGON_CODES.has(String(p.polygon || '').toUpperCase()))
-    .forEach(p => sel.add(new Option(`${p.polygon} - ${p.space_name_he || p.space_name || ''}`, p.polygon)));
+    .forEach(p => sel.add(new Option(`${p.polygon} - ${polygonDisplayName(p)}`, p.polygon)));
 }
 
 function saveGroup() {
@@ -2207,7 +2382,7 @@ function populateCmpSelect(typeSelId, valSelId) {
     DATA.polygons.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.polygon;
-      opt.textContent = `${p.polygon} – ${p.space_name_he || p.space_name || ''}`;
+      opt.textContent = `${p.polygon} – ${polygonDisplayName(p)}`;
       sel.appendChild(opt);
     });
   } else if (type === 'group') {
@@ -2221,7 +2396,7 @@ function populateCmpSelect(typeSelId, valSelId) {
     DATA.superAreas.forEach(sa => {
       const opt = document.createElement('option');
       opt.value = sa.code;
-      opt.textContent = sa.code;
+      opt.textContent = `${sa.code} – ${superAreaDisplayName(sa)}`;
       sel.appendChild(opt);
     });
   }
@@ -2240,7 +2415,7 @@ function applyCmpFilters() {
       if (saCode && p.space_code !== saCode) return;
       const opt = document.createElement('option');
       opt.value = p.polygon;
-      opt.textContent = `${p.polygon} – ${p.space_name_he || p.space_name || ''}`;
+      opt.textContent = `${p.polygon} – ${polygonDisplayName(p)}`;
       valSel.appendChild(opt);
     });
   });
@@ -2250,7 +2425,7 @@ function getUnitStats(type, key) {
   if (type === 'poly') {
     const s = computePolyStats(key);
     return {
-      label: `${s.polygon} – ${s.name_he}`,
+      label: `${s.polygon} – ${s.name_he || s.name_en || s.polygon}`,
       polyCodes: [key],
       treeCount: s.treeCount, avenueTrees: s.avenueTrees, totalTrees: s.totalTrees,
       avgGirth: s.avgGirth, medianGirth: s.medianGirth, stdGirth: s.stdGirth,
@@ -2280,7 +2455,7 @@ function getUnitStats(type, key) {
     if (!sa) return null;
     const s = computeSAStats(sa);
     return {
-      label: `${s.code} – ${s.name_he}`,
+      label: `${s.code} – ${s.name_he || s.name_en || s.code}`,
       polyCodes: sa.polygons,
       treeCount: s.treeCount, avenueTrees: s.avenueTrees, totalTrees: s.totalTrees,
       avgGirth: s.avgGirth, medianGirth: s.medianGirth, stdGirth: s.stdGirth,
@@ -2587,6 +2762,16 @@ function init() {
       showOutsideTrees ? 'הסר עצים מחוץ לפוליגונים' : 'הוסף עצים מחוץ לפוליגונים';
     drawMap();
   };
+
+  const toggleEllipsesBtn = document.getElementById('btnToggleSpaceEllipses');
+  if (toggleEllipsesBtn) {
+    setSpaceEllipseButtonText();
+    toggleEllipsesBtn.onclick = () => {
+      showSpaceEllipses = !showSpaceEllipses;
+      setSpaceEllipseButtonText();
+      drawMap();
+    };
+  }
 }
 
 function toggleLanguage() {
@@ -2618,10 +2803,11 @@ function retranslateUI() {
   if (startDrawBtn) startDrawBtn.textContent = t('start_draw_polygon');
   if (finishDrawBtn) finishDrawBtn.textContent = t('finish_draw_polygon');
   if (cancelDrawBtn) cancelDrawBtn.textContent = t('cancel_draw_polygon');
+  setSpaceEllipseButtonText();
   const coordsNote = document.querySelector('.float .small.mt8');
   if (coordsNote) coordsNote.textContent = t('coordinates');
   // Tabs
-  const tabKeyMap = ['overview', 'polygons_tab', 'super_areas_tab', 'analytics', 'advanced', 'groups', 'compare', 'avenues_tab'];
+  const tabKeyMap = ['overview', 'polygons_tab', 'super_areas_tab', 'analytics', 'advanced', 'groups', 'compare', 'avenues_tab', 'space_type_compare_tab'];
   document.querySelectorAll('.tabbtn').forEach((btn, i) => btn.textContent = t(tabKeyMap[i]));
   // KPI labels
   const kpiKeyMap = ['trees', 'polygons', 'avenues', 'avg_girth', 'avg_height', 'total_area', 'median_girth', 'super_areas', 'avg_density'];

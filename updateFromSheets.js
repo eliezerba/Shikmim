@@ -381,17 +381,20 @@ async function buildData() {
       const polygonCode = normalizePolygonCode(smartGetField(r, 'Polygon', 'פוליגון', 'polygon'));
       const coordsStr = smartGetField(r, 'Coordinates', 'Coords', 'coords', 'latlons', 'Latlons');
       const parsedCoords = parsePolygonCoords(coordsStr);
+      const spaceCode = normalizeSpaceCode(
+        smartGetField(r, 'AREA', 'Area', 'area', '_col4', 'טור E (מאחד)', 'Space Code', 'טור E', 'space_code'),
+        polygonCode
+      );
+      const rawNameHe = String(smartGetField(r, 'Space Name [HE]', 'שם בעברית', 'Name HE', 'space_name_he') || '').trim();
+      const rawNameEn = String(smartGetField(r, 'Space Name', 'שם באנגלית', 'Name EN', 'space_name') || '').trim();
       return {
         polygon: polygonCode,
         coords: parsedCoords.coords,
         latlons: parsedCoords.latlons,
-        space_name_he: smartGetField(r, 'Space Name [HE]', 'שם בעברית', 'Name HE', 'space_name_he'),
-        space_name: smartGetField(r, 'Space Name', 'שם באנגלית', 'Name EN', 'space_name'),
+        space_name_he: rawNameHe || rawNameEn || spaceCode || polygonCode,
+        space_name: rawNameEn || rawNameHe || spaceCode || polygonCode,
         // AREA is the super-area grouping key in the current sheet.
-        space_code: normalizeSpaceCode(
-          smartGetField(r, 'AREA', 'Area', 'area', '_col4', 'טור E (מאחד)', 'Space Code', 'טור E', 'space_code'),
-          polygonCode
-        ),
+        space_code: spaceCode,
         space_type: smartGetField(r, 'Space type', 'סוג', 'Type', 'space_type'),
         area_acres: smartGetField(r, 'Area (acres)', 'שטח acres', 'Area Acres', 'area_acres'),
         tree_count_sheet: smartGetField(r, 'כמות שקמים', 'עצים בשיט', 'Tree Count'),
@@ -418,8 +421,8 @@ async function buildData() {
         polygon: code,
         coords: [],
         latlons: [],
-        space_name_he: '',
-        space_name: '',
+        space_name_he: code,
+        space_name: code,
         space_code: normalizeSpaceCode(null),
         space_type: '',
         area_acres: 0,
