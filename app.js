@@ -7,7 +7,7 @@ const POLYGONS_API_URL = 'https://services5.arcgis.com/eJYUV73IZAY87Jwy/ArcGIS/r
 /* Space metadata is loaded dynamically from data.json (polygons sheet) — no hardcoded map. */
 
 /* ---------- Language & Translations ---------- */
-let LANG = localStorage.getItem('shikmim_lang') || 'he';
+let LANG = 'en';
 const TRANSLATIONS = {
   he: {
     // UI Headers & Basic
@@ -233,10 +233,38 @@ const TRANSLATIONS = {
     updating: 'Loading update...',
     server_unavailable: 'Update server unavailable',
     success_update: 'Updated successfully!',
-    language: 'עברית',
+    language: 'English',
     user_polygon_name: 'User Polygon',
     user_polygon_type: 'Manual Polygon',
     user_polygon_badge: 'manual',
+    chart_explanation: 'Chart explanation',
+    unassigned: 'Unassigned',
+    tree: 'Tree',
+    avenue: 'Avenue',
+    area: 'Area',
+    type: 'Type',
+    length: 'Length',
+    loading_sheet: 'Loading from sheet...',
+    loading_polygons: 'Loading polygons...',
+    sheet_load_error: 'Sheet loading error: ',
+    loading_saved_data: 'loading saved data...',
+    loaded_from_sheet: 'loaded from sheet',
+    loaded_from_saved: 'loaded from saved data',
+    show_space_ellipses: 'Show space ellipses',
+    hide_space_ellipses: 'Hide space ellipses',
+    estimated_space_ellipse: 'Estimated space ellipse',
+    full_equality: 'Perfect equality',
+    cumulative_tree_population_share: 'Cumulative share of tree population',
+    cumulative_girth_share: 'Cumulative share of total girth',
+    longitude: 'Longitude',
+    latitude: 'Latitude',
+    outside_polygons_suffix: 'outside polygons',
+    remove_outside_trees: 'Remove outside-polygon trees',
+    add_outside_trees: 'Add outside-polygon trees',
+    loaded_from: 'loaded from',
+    all_areas: 'All areas',
+    all_polygons: 'All polygons',
+    no_data_dash: 'N/A',
     
     // Legends
     mapped: 'Mapped',
@@ -246,6 +274,65 @@ const TRANSLATIONS = {
 
 function t(key) {
   return TRANSLATIONS[LANG][key] || key;
+}
+
+const HEBREW_RE = /[\u0590-\u05FF]/;
+const HEBREW_ROMAN_MAP = {
+  'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd', 'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'kh', 'ט': 't',
+  'י': 'y', 'כ': 'k', 'ך': 'k', 'ל': 'l', 'מ': 'm', 'ם': 'm', 'נ': 'n', 'ן': 'n', 'ס': 's',
+  'ע': 'a', 'פ': 'p', 'ף': 'p', 'צ': 'ts', 'ץ': 'ts', 'ק': 'k', 'ר': 'r', 'ש': 'sh', 'ת': 't'
+};
+const SPACE_TYPE_EN_MAP = {
+  'חלקות': 'Plots',
+  'דרכים': 'Roads',
+  'אחר': 'Other',
+  'גבול חולות': 'Sand Dune Edge',
+  'חלקות | גבול חולות': 'Plots | Sand Dune Edge'
+};
+
+function containsHebrew(value) {
+  return HEBREW_RE.test(String(value || ''));
+}
+
+function romanizeHebrew(text) {
+  return String(text || '')
+    .split('')
+    .map(ch => HEBREW_ROMAN_MAP[ch] || ch)
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function englishizeValue(value, fallback = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return fallback;
+  if (!containsHebrew(raw)) return raw;
+
+  if (SPACE_TYPE_EN_MAP[raw]) return SPACE_TYPE_EN_MAP[raw];
+  if (raw.includes('|')) {
+    return raw
+      .split('|')
+      .map(part => englishizeValue(part.trim(), part.trim()))
+      .filter(Boolean)
+      .join(' | ');
+  }
+
+  const romanized = romanizeHebrew(raw);
+  return romanized || fallback;
+}
+
+function normalizeDataForEnglishUI() {
+  if (!DATA) return;
+
+  (DATA.polygons || []).forEach(p => {
+    p.space_name = englishizeValue(p.space_name, englishizeValue(p.space_name_he, p.polygon || ''));
+    p.space_code = englishizeValue(p.space_code, p.space_code || '');
+    p.space_type = englishizeValue(p.space_type, 'Other');
+  });
+
+  (DATA.lines || []).forEach(l => {
+    l.type = englishizeValue(l.type, l.type || '');
+  });
 }
 
 /* ---------- globals ---------- */
@@ -296,7 +383,7 @@ function stddev(arr) { const m = mean(arr); if (m == null) return null; const a 
 function arrMin(arr) { const a = arr.filter(v => v != null && !isNaN(v) && v !== 0); return a.length ? Math.min(...a) : null; }
 function arrMax(arr) { const a = arr.filter(v => v != null && !isNaN(v) && v !== 0); return a.length ? Math.max(...a) : null; }
 function fmt(v, d = 1) { return v != null ? Number(v).toFixed(d) : '-'; }
-function fmtInt(v) { return v != null ? Math.round(v).toLocaleString('he-IL') : '-'; }
+function fmtInt(v) { return v != null ? Math.round(v).toLocaleString('en-US') : '-'; }
 const pltCfg = { responsive: true, displayModeBar: false };
 const pltLay = (title, extra) => Object.assign({ title, font: { family: 'Segoe UI, Arial', size: 12 }, margin: { t: 40, b: 40, l: 50, r: 20 } }, extra || {});
 
@@ -313,16 +400,16 @@ function polygonDisplayName(p, lang = LANG) {
   const en = String(p?.space_name || '').trim();
   const spaceCode = String(p?.space_code || '').trim();
   const polyCode = String(p?.polygon || '').trim();
-  if (lang === 'he') return he || en || spaceCode || polyCode;
-  return en || he || spaceCode || polyCode;
+  if (lang === 'he') return englishizeValue(he || en || spaceCode || polyCode, en || spaceCode || polyCode);
+  return englishizeValue(en || he || spaceCode || polyCode, spaceCode || polyCode);
 }
 
 function superAreaDisplayName(sa, lang = LANG) {
   const he = String(sa?.name_he || '').trim();
   const en = String(sa?.name_en || '').trim();
   const code = String(sa?.code || '').trim();
-  if (lang === 'he') return he || en || code;
-  return en || he || code;
+  if (lang === 'he') return englishizeValue(he || en || code, en || code);
+  return englishizeValue(en || he || code, code);
 }
 
 function sanitizeLatLons(latlons) {
@@ -906,23 +993,23 @@ function parseApiGeometryToLatLons(geometry) {
 function chartInfoHtml(chartId) {
   const cfg = CHART_INFO[chartId];
   if (!cfg) return '';
-  const labels = CHART_INFO_LABELS[LANG] || CHART_INFO_LABELS.he;
+  const labels = CHART_INFO_LABELS[LANG] || CHART_INFO_LABELS.en;
   return `
     <div class="chart-info-section">
       <h4>${labels.fields}</h4>
-      ${listToHtml(cfg.fields[LANG] || cfg.fields.he)}
+      ${listToHtml(cfg.fields[LANG] || cfg.fields.en)}
     </div>
     <div class="chart-info-section">
       <h4>${labels.formula}</h4>
-      ${listToHtml(cfg.formula[LANG] || cfg.formula.he)}
+      ${listToHtml(cfg.formula[LANG] || cfg.formula.en)}
     </div>
     <div class="chart-info-section">
       <h4>${labels.purpose}</h4>
-      <p>${cfg.purpose[LANG] || cfg.purpose.he}</p>
+      <p>${cfg.purpose[LANG] || cfg.purpose.en}</p>
     </div>
     <div class="chart-info-section">
       <h4>${labels.notes}</h4>
-      ${listToHtml(cfg.notes[LANG] || cfg.notes.he)}
+      ${listToHtml(cfg.notes[LANG] || cfg.notes.en)}
     </div>
   `;
 }
@@ -958,7 +1045,7 @@ function openChartInfo(chartId) {
   const titleEl = document.getElementById('chartInfoTitle');
   const bodyEl = document.getElementById('chartInfoBody');
   if (!modal || !titleEl || !bodyEl) return;
-  titleEl.textContent = cfg.title[LANG] || cfg.title.he;
+  titleEl.textContent = cfg.title[LANG] || cfg.title.en;
   bodyEl.innerHTML = chartInfoHtml(chartId);
   modal.classList.add('open');
 }
@@ -976,7 +1063,7 @@ function initChartHeaders() {
     const row = document.createElement('div');
     row.className = 'chart-title-row';
     row.dataset.chartId = chartId;
-    row.innerHTML = `<span class="chart-title-text">${cfg.title[LANG] || cfg.title.he}</span><button type="button" class="chart-info-btn" title="${LANG === 'he' ? 'הסבר על הגרף' : 'Chart explanation'}">i</button>`;
+    row.innerHTML = `<span class="chart-title-text">${cfg.title[LANG] || cfg.title.en}</span><button type="button" class="chart-info-btn" title="${t('chart_explanation')}">i</button>`;
     chartEl.parentNode.insertBefore(row, chartEl);
     row.querySelector('.chart-info-btn').addEventListener('click', () => openChartInfo(chartId));
   });
@@ -988,8 +1075,8 @@ function refreshChartTitles() {
     if (!cfg) return;
     const titleEl = row.querySelector('.chart-title-text');
     const btn = row.querySelector('.chart-info-btn');
-    if (titleEl) titleEl.textContent = cfg.title[LANG] || cfg.title.he;
-    if (btn) btn.title = LANG === 'he' ? 'הסבר על הגרף' : 'Chart explanation';
+    if (titleEl) titleEl.textContent = cfg.title[LANG] || cfg.title.en;
+    if (btn) btn.title = t('chart_explanation');
   });
 }
 
@@ -1312,13 +1399,13 @@ async function loadData() {
     // Always try to fetch live from Google Sheet so data stays current on every load
     let loadedLive = false;
     try {
-      document.getElementById('statusText').textContent = 'טוען מהגיליון...';
+      document.getElementById('statusText').textContent = t('loading_sheet');
       DATA = await buildDataFromSheets();
       loadedLive = true;
       console.log(`Loaded live from Google Sheet: ${DATA.points.length} trees, ${DATA.polygons.length} polygons`);
     } catch (sheetErr) {
       console.warn('Live Google Sheet fetch failed, falling back to embedded data:', sheetErr);
-      document.getElementById('statusText').textContent = 'שגיאה בטעינת הגיליון: ' + sheetErr.message + ' — טוען נתונים שמורים...';
+      document.getElementById('statusText').textContent = t('sheet_load_error') + sheetErr.message + ' - ' + t('loading_saved_data');
       const inlineEl = document.getElementById('_dataInline');
       if (inlineEl) {
         DATA = JSON.parse(inlineEl.textContent);
@@ -1334,19 +1421,22 @@ async function loadData() {
 
     // Merge in live ArcGIS geometries without dropping sheet-only polygons/metadata.
     try {
-      document.getElementById('statusText').textContent = 'טוען פוליגונים...';
+      document.getElementById('statusText').textContent = t('loading_polygons');
       const apiPolygons = await loadPolygonsFromAPI();
       DATA.polygons = mergePolygonsFromSheetAndAPI(sheetPolygons, apiPolygons);
     } catch (apiErr) {
       console.warn('Polygon API fetch failed, using sheet polygons:', apiErr);
     }
+    normalizeDataForEnglishUI();
     loadUserPolygons();
     buildSuperAreas();
     init();
-    const sourceLabel = loadedLive ? ' • נטען מהגיליון' : ' • נטען מנתונים שמורים';
+    const sourceLabel = loadedLive ? ` • ${t('loaded_from_sheet')}` : ` • ${t('loaded_from_saved')}`;
     document.getElementById('statusText').textContent = `${DATA.points.length} ${t('trees')} | ${DATA.polygons.length} ${t('polygons')} | ${DATA.lines.length} ${t('avenues')}${sourceLabel}`;
   } catch (e) {
     document.getElementById('statusText').textContent = t('error_loading') + e.message;
+    const appRoot = document.getElementById('app');
+    if (appRoot) appRoot.style.visibility = 'visible';
     console.error(e);
   }
 }
@@ -1467,9 +1557,7 @@ function analysisPolygons(polys) {
 }
 
 function spaceEllipseToggleLabel() {
-  return showSpaceEllipses
-    ? (LANG === 'he' ? 'הסתר אליפסות מרחב' : 'Hide space ellipses')
-    : (LANG === 'he' ? 'הצג אליפסות מרחב' : 'Show space ellipses');
+  return showSpaceEllipses ? t('hide_space_ellipses') : t('show_space_ellipses');
 }
 
 function setSpaceEllipseButtonText() {
@@ -1580,7 +1668,7 @@ function drawSpaceEllipses(polysInView) {
     }).addTo(layers.spaceEllipses);
 
     const title = `${sa.code} - ${superAreaDisplayName(sa)}`;
-    poly.bindPopup(`<b>${title}</b><br>${LANG === 'he' ? 'אליפסה משוערת למרחב' : 'Estimated space ellipse'}<br>${LANG === 'he' ? 'פוליגונים' : 'Polygons'}: ${visibleSaPolys.map(p => p.polygon).join(', ')}`);
+    poly.bindPopup(`<b>${title}</b><br>${t('estimated_space_ellipse')}<br>${t('polygons')}: ${visibleSaPolys.map(p => p.polygon).join(', ')}`);
     poly.on('click', () => {
       selectedSA = sa.code;
       selectedPolygon = null;
@@ -1686,7 +1774,7 @@ function drawMap() {
     const poly = L.polygon(p.latlons, getPolygonStyle(p.polygon)).addTo(layers.polys);
     const st = computePolyStats(p.polygon);
     const userTag = isUserPolygonObj(p) ? `<span style="color:#b91c1c;font-weight:700">${t('user_polygon_badge')}</span><br>` : '';
-    poly.bindPopup(`<b>${p.polygon} - ${polygonDisplayName(p)}</b><br>${userTag}${p.space_type || ''}<br>עצים: ${st.totalTrees} (${st.avenueTrees} משדרות)<br>ממוצע היקף: ${fmt(st.avgGirth)}<br>שטח: ${fmt(st.area)} acres`);
+    poly.bindPopup(`<b>${p.polygon} - ${polygonDisplayName(p)}</b><br>${userTag}${englishizeValue(p.space_type || '', 'Other')}<br>${t('trees')}: ${st.totalTrees} (${st.avenueTrees} ${t('avenues')})<br>${t('avg_girth')}: ${fmt(st.avgGirth)}<br>${t('area')}: ${fmt(st.area)} acres`);
     poly.on('click', () => { selectedPolygon = p.polygon; selectedSA = null; updateAll(); });
     if (showLabels) {
       const lat = p.latlons.reduce((a, b) => a + b[0], 0) / p.latlons.length;
@@ -1700,29 +1788,29 @@ function drawMap() {
   drawSpaceEllipses(polys);
 
   if (showTrees) {
-    pts.forEach(t => {
-      const isSel = selectedPolygon && t.polygon === selectedPolygon;
-      const isSASel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(t.polygon);
+    pts.forEach(pt => {
+      const isSel = selectedPolygon && pt.polygon === selectedPolygon;
+      const isSASel = selectedSA && DATA.superAreas.find(s => s.code === selectedSA)?.polygons.includes(pt.polygon);
       const clr = isSel ? '#14532d' : (isSASel ? '#7c3aed' : '#16a34a');
-      L.circleMarker(t.latlon, { radius: 3.5, color: clr, fillColor: clr, fillOpacity: 0.9, weight: 1 })
-        .bindPopup(`עץ #${t.id}<br>פוליגון: ${t.polygon || 'ללא'}<br>היקף: ${t.girth ?? ''}<br>גובה: ${normalizeHeight(t.height) ?? ''}`)
+      L.circleMarker(pt.latlon, { radius: 3.5, color: clr, fillColor: clr, fillOpacity: 0.9, weight: 1 })
+        .bindPopup(`${t('tree')} #${pt.id}<br>${t('polygon')}: ${pt.polygon || t('unassigned')}<br>${t('avg_girth')}: ${pt.girth ?? ''}<br>${t('avg_height')}: ${normalizeHeight(pt.height) ?? ''}`)
         .addTo(layers.trees);
     });
-    outsidePts.forEach(t => {
-      L.circleMarker(t.latlon, { radius: 4, color: '#92400e', fillColor: '#d97706', fillOpacity: 0.9, weight: 1 })
-        .bindPopup(`עץ #${t.id} (מחוץ לפוליגונים)<br>היקף: ${t.girth ?? ''}<br>גובה: ${normalizeHeight(t.height) ?? ''}`)
+    outsidePts.forEach(pt => {
+      L.circleMarker(pt.latlon, { radius: 4, color: '#92400e', fillColor: '#d97706', fillOpacity: 0.9, weight: 1 })
+        .bindPopup(`${t('tree')} #${pt.id} (${t('outside_polygons_suffix')})<br>${t('avg_girth')}: ${pt.girth ?? ''}<br>${t('avg_height')}: ${normalizeHeight(pt.height) ?? ''}`)
         .addTo(layers.trees);
     });
   }
 
   if (showLines) lns.forEach(l => {
     L.polyline([l.latlon1, l.latlon2], { color: '#dc2626', weight: 3, dashArray: '8,5' })
-      .bindPopup(`שדרה #${l.id}<br>פוליגון: ${l.polygon || 'ללא'}<br>סוג: ${l.type || ''}<br>אורך: ${fmt(l.length)}`)
+      .bindPopup(`${t('avenue')} #${l.id}<br>${t('polygon')}: ${l.polygon || t('unassigned')}<br>${t('type')}: ${englishizeValue(l.type || '', 'Other')}<br>${t('length')}: ${fmt(l.length)}`)
       .addTo(layers.lines);
   });
 
-  const outsideLabel = showOutsideTrees ? ` (+${outsidePts.length} מחוץ לפוליגונים)` : '';
-  document.getElementById('statusText').textContent = `${pts.length} עצים${outsideLabel} | ${polys.length} פוליגונים | ${lns.length} שדרות`;
+  const outsideLabel = showOutsideTrees ? ` (+${outsidePts.length} ${t('outside_polygons_suffix')})` : '';
+  document.getElementById('statusText').textContent = `${pts.length} ${t('trees')}${outsideLabel} | ${polys.length} ${t('polygons')} | ${lns.length} ${t('avenues')}`;
 }
 
 function fitToData() {
@@ -1803,7 +1891,7 @@ function updateSelectionDetail() {
     const st = computePolyStats(selectedPolygon);
     el.innerHTML = `
       <div class="card">
-        <div class="detail-header"><span class="poly-code">${st.polygon}</span><span class="poly-name">${LANG==='he' ? (st.name_he||st.name_en) : (st.name_en||st.name_he)}</span></div>
+        <div class="detail-header"><span class="poly-code">${st.polygon}</span><span class="poly-name">${englishizeValue(st.name_en || st.name_he || st.polygon, st.polygon)}</span></div>
         <div class="detail-grid">
           <div class="card"><h5>${t('tree_data')}</h5>
             <div class="stat-row"><span class="stat-label">${t('mapped_trees')}</span><span class="stat-value">${st.treeCount}</span></div>
@@ -1844,7 +1932,7 @@ function updateSelectionDetail() {
     sa.polygons.forEach(polyCode => {
       const ps = computePolyStats(polyCode);
       const pObj = DATA.polygons.find(x => x.polygon === polyCode);
-      const stype = (pObj?.space_type || '').trim() || '—';
+      const stype = englishizeValue((pObj?.space_type || '').trim(), t('no_data_dash')) || t('no_data_dash');
       if (!stypeMap[stype]) stypeMap[stype] = { polygons: [], trees: 0, avenueTrees: 0, area: 0, girths: [], heights: [] };
       const g = stypeMap[stype];
       g.polygons.push(polyCode);
@@ -1872,9 +1960,9 @@ function updateSelectionDetail() {
           <td style="text-align:center">${g.trees}</td>
           <td style="text-align:center">${g.avenueTrees}</td>
           <td style="text-align:center">${fmt(g.area)}</td>
-          <td style="text-align:center">${avgG != null ? fmt(avgG) : '—'}</td>
-          <td style="text-align:center">${avgH != null ? fmt(avgH) : '—'}</td>
-          <td style="text-align:center">${density != null ? fmt(density,3) : '—'}</td>
+          <td style="text-align:center">${avgG != null ? fmt(avgG) : t('no_data_dash')}</td>
+          <td style="text-align:center">${avgH != null ? fmt(avgH) : t('no_data_dash')}</td>
+          <td style="text-align:center">${density != null ? fmt(density,3) : t('no_data_dash')}</td>
         </tr>`;
       }).join('');
     const spaceTypeTable = `
@@ -1993,7 +2081,7 @@ function renderSADetail() {
       <div class="card"><h5>${t('tree_data')}</h5>
         <div class="stat-row"><span class="stat-label">${t('mapped_trees')}</span><span class="stat-value">${st.treeCount}</span></div>
         <div class="stat-row"><span class="stat-label">${t('avenue_trees')}</span><span class="stat-value">${st.avenueTrees}</span></div>
-        <div class="stat-row"><span class="stat-label">סה"כ</span><span class="stat-value">${st.totalTrees}</span></div>
+        <div class="stat-row"><span class="stat-label">${t('total_trees')}</span><span class="stat-value">${st.totalTrees}</span></div>
       </div>
       <div class="card"><h5>${t('girth_stats')}</h5>
         <div class="stat-row"><span class="stat-label">${t('avg_girth')}</span><span class="stat-value">${fmt(st.avgGirth)}</span></div>
@@ -2072,7 +2160,7 @@ function updateCharts() {
   const colors = ['#16a34a', '#2563eb', '#dc2626', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6', '#6366f1', '#e11d48', '#a3e635', '#0891b2', '#d946ef'];
   const polyGroups = {};
   pts.forEach(t => {
-    const k = t.polygon || 'ללא';
+    const k = t.polygon || t('unassigned');
     if (!polyGroups[k]) polyGroups[k] = { girth: [], height: [] };
     polyGroups[k].girth.push((t.girth != null && t.girth !== 0) ? t.girth : null);
     polyGroups[k].height.push(normalizeHeight(t.height));
@@ -2086,7 +2174,7 @@ function updateCharts() {
 
   // Bar: tree count per polygon
   const counts = {};
-  pts.forEach(t => { const k = t.polygon || 'ללא'; counts[k] = (counts[k] || 0) + 1; });
+  pts.forEach(t => { const k = t.polygon || t('unassigned'); counts[k] = (counts[k] || 0) + 1; });
   Plotly.newPlot('chartBars', [{ x: Object.keys(counts), y: Object.values(counts), type: 'bar', marker: { color: '#2563eb' } }], pltLay(''), pltCfg);
 
   // Histogram: girth
@@ -2135,14 +2223,14 @@ function updateAdvancedCharts() {
   const polyStats = DATA.polygons.filter(p => !isUserPolygonObj(p)).map(p => computePolyStats(p.polygon));
 
   // Treemap: area proportional — branchvalues:'remainder' is most reliable; parent values=0
-  const tmLabels  = ['כל השטחים'];
+  const tmLabels  = [t('all_areas')];
   const tmParents = [''];
   const tmValues  = [0];
-  const tmCustom  = [LANG === 'he' ? 'כל הפוליגונים' : 'All polygons'];
+  const tmCustom  = [t('all_polygons')];
 
   DATA.superAreas.forEach(sa => {
     tmLabels.push(sa.code);
-    tmParents.push('כל השטחים');
+    tmParents.push(t('all_areas'));
     tmValues.push(0);
     tmCustom.push(sa.code);
     sa.polygons.forEach(code => {
@@ -2151,7 +2239,7 @@ function updateAdvancedCharts() {
       tmLabels.push(code);
       tmParents.push(sa.code);
       tmValues.push(parseFloat((p?.area_acres || 1).toFixed(4)));
-      tmCustom.push(`${p?.space_name_he || ''} | ${st.totalTrees} ${t('trees')}`);
+      tmCustom.push(`${polygonDisplayName(p || {})} | ${st.totalTrees} ${t('trees')}`);
     });
   });
 
@@ -2206,16 +2294,16 @@ function updateAdvancedCharts() {
     const gini = 1 - 2 * lorenzY.reduce((s, v, i) => i === 0 ? s : s + (lorenzX[i] - lorenzX[i - 1]) * (lorenzY[i] + lorenzY[i - 1]) / 2, 0);
     Plotly.newPlot('chartLorenz', [
       { x: lorenzX, y: lorenzY, type: 'scatter', mode: 'lines', name: 'Lorenz', line: { color: '#dc2626', width: 2 } },
-      { x: [0, 1], y: [0, 1], type: 'scatter', mode: 'lines', name: 'שוויון מלא', line: { color: '#94a3b8', dash: 'dash' } },
-    ], pltLay('', { xaxis: { title: 'חלק מצטבר של אוכלוסיית העצים' }, yaxis: { title: 'חלק מצטבר של סך ההיקפים' } }), pltCfg);
+      { x: [0, 1], y: [0, 1], type: 'scatter', mode: 'lines', name: t('full_equality'), line: { color: '#94a3b8', dash: 'dash' } },
+    ], pltLay('', { xaxis: { title: t('cumulative_tree_population_share') }, yaxis: { title: t('cumulative_girth_share') } }), pltCfg);
   }
 
   // Space type pie
   const typeTrees = {};
   DATA.polygons.filter(p => !isUserPolygonObj(p)).forEach(p => {
-    const t = p.space_type || 'אחר';
+    const stype = englishizeValue(p.space_type || '', 'Other');
     const st = computePolyStats(p.polygon);
-    typeTrees[t] = (typeTrees[t] || 0) + st.totalTrees;
+    typeTrees[stype] = (typeTrees[stype] || 0) + st.totalTrees;
   });
   Plotly.newPlot('chartSpaceType', [{
     labels: Object.keys(typeTrees), values: Object.values(typeTrees),
@@ -2226,16 +2314,16 @@ function updateAdvancedCharts() {
   Plotly.newPlot('chartCorrelation', [{
     x: polyStats.map(s => s.avgGirth), y: polyStats.map(s => s.density),
     text: polyStats.map(s => s.polygon), mode: 'markers+text', type: 'scatter',
-    marker: { size: polyStats.map(s => Math.sqrt(s.totalTrees) * 3), color: polyStats.map(s => s.area), colorscale: 'Viridis', showscale: true, colorbar: { title: 'שטח' } },
+    marker: { size: polyStats.map(s => Math.sqrt(s.totalTrees) * 3), color: polyStats.map(s => s.area), colorscale: 'Viridis', showscale: true, colorbar: { title: t('area') } },
     textposition: 'top center',
-    hovertemplate: 'פוליגון: %{text}<br>ממוצע היקף: %{x:.1f}<br>צפיפות: %{y:.3f}<extra></extra>',
-  }], pltLay('', { xaxis: { title: 'ממוצע היקף' }, yaxis: { title: 'צפיפות (עצים/acre)' } }), pltCfg);
+    hovertemplate: `${t('polygon')}: %{text}<br>${t('avg_girth')}: %{x:.1f}<br>${t('avg_density')}: %{y:.3f}<extra></extra>`,
+  }], pltLay('', { xaxis: { title: t('avg_girth') }, yaxis: { title: `${t('avg_density')} (${t('trees')}/acre)` } }), pltCfg);
 
   // Spatial density heatmap (tree locations)
   Plotly.newPlot('chartSpatialDensity', [{
     x: pts.map(t => t.latlon[1]), y: pts.map(t => t.latlon[0]),
     type: 'histogram2d', colorscale: 'Hot', nbinsx: 40, nbinsy: 40, reversescale: true,
-  }], pltLay('', { xaxis: { title: 'קו אורך' }, yaxis: { title: 'קו רוחב' } }), pltCfg);
+  }], pltLay('', { xaxis: { title: t('longitude') }, yaxis: { title: t('latitude') } }), pltCfg);
 
   // Girth vs Area bubble
   Plotly.newPlot('chartGirthVsArea', [{
@@ -2244,15 +2332,15 @@ function updateAdvancedCharts() {
     mode: 'markers+text', type: 'scatter',
     marker: { size: polyStats.map(s => Math.max(s.totalTrees / 5, 8)), color: '#059669', opacity: 0.7 },
     textposition: 'top center',
-  }], pltLay('', { xaxis: { title: 'שטח (acres)' }, yaxis: { title: 'ממוצע היקף' } }), pltCfg);
+  }], pltLay('', { xaxis: { title: `${t('area')} (acres)` }, yaxis: { title: t('avg_girth') } }), pltCfg);
 
   // Polygon profile: grouped bar - multiple metrics side by side
   const profileCodes = polys.map(p => p.polygon);
   Plotly.newPlot('chartPolygonProfile', [
-    { x: profileCodes, y: polyStats.map(s => s.avgGirth || 0), type: 'bar', name: 'ממוצע היקף', marker: { color: '#2563eb' } },
-    { x: profileCodes, y: polyStats.map(s => s.medianGirth || 0), type: 'bar', name: 'חציון היקף', marker: { color: '#06b6d4' } },
-    { x: profileCodes, y: polyStats.map(s => s.stdGirth || 0), type: 'bar', name: 'σ היקף', marker: { color: '#f59e0b' } },
-    { x: profileCodes, y: polyStats.map(s => (s.avgHeight || 0) / 10), type: 'bar', name: 'ממוצע גובה ÷10', marker: { color: '#8b5cf6' } },
+    { x: profileCodes, y: polyStats.map(s => s.avgGirth || 0), type: 'bar', name: t('avg_girth'), marker: { color: '#2563eb' } },
+    { x: profileCodes, y: polyStats.map(s => s.medianGirth || 0), type: 'bar', name: t('median_girth'), marker: { color: '#06b6d4' } },
+    { x: profileCodes, y: polyStats.map(s => s.stdGirth || 0), type: 'bar', name: `${t('stdev')} Girth`, marker: { color: '#f59e0b' } },
+    { x: profileCodes, y: polyStats.map(s => (s.avgHeight || 0) / 10), type: 'bar', name: `${t('avg_height')} /10`, marker: { color: '#8b5cf6' } },
   ], Object.assign(pltLay(''), { barmode: 'group' }), pltCfg);
 }
 
@@ -2425,7 +2513,7 @@ function getUnitStats(type, key) {
   if (type === 'poly') {
     const s = computePolyStats(key);
     return {
-      label: `${s.polygon} – ${s.name_he || s.name_en || s.polygon}`,
+      label: `${s.polygon} - ${englishizeValue(s.name_en || s.name_he || s.polygon, s.polygon)}`,
       polyCodes: [key],
       treeCount: s.treeCount, avenueTrees: s.avenueTrees, totalTrees: s.totalTrees,
       avgGirth: s.avgGirth, medianGirth: s.medianGirth, stdGirth: s.stdGirth,
@@ -2455,7 +2543,7 @@ function getUnitStats(type, key) {
     if (!sa) return null;
     const s = computeSAStats(sa);
     return {
-      label: `${s.code} – ${s.name_he || s.name_en || s.code}`,
+      label: `${s.code} - ${englishizeValue(s.name_en || s.name_he || s.code, s.code)}`,
       polyCodes: sa.polygons,
       treeCount: s.treeCount, avenueTrees: s.avenueTrees, totalTrees: s.totalTrees,
       avgGirth: s.avgGirth, medianGirth: s.medianGirth, stdGirth: s.stdGirth,
@@ -2664,6 +2752,7 @@ async function updateFromSheets() {
       // Reload data.json
       const resp2 = await fetch('data.json?t=' + Date.now());
       DATA = await resp2.json();
+      normalizeDataForEnglishUI();
       buildSuperAreas();
       _polyStatsCache = {};
       _saStatsCache = {};
@@ -2672,7 +2761,7 @@ async function updateFromSheets() {
       if (stcList) stcList.innerHTML = '';
       updateAll();
       
-      status.textContent = '✓ ' + t('success_update') + ' ' + (DATA.lastUpdated ? new Date(DATA.lastUpdated).toLocaleString('he-IL') : '');
+      status.textContent = '✓ ' + t('success_update') + ' ' + (DATA.lastUpdated ? new Date(DATA.lastUpdated).toLocaleString('en-US') : '');
       status.style.color = 'var(--accent)';
     } else {
       throw new Error(result.error || 'Update failed');
@@ -2694,12 +2783,12 @@ function init() {
   initCompareUI();
   configureUpdateUI();
   initChartHeaders();
+  retranslateUI();
+  const appRoot = document.getElementById('app');
+  if (appRoot) appRoot.style.visibility = 'visible';
   renderAvenues();
   updateAll();
   fitToData();
-
-  // Language toggle
-  document.getElementById('btnToggleLang').onclick = toggleLanguage;
 
   // Float panel collapse toggle
   document.getElementById('btnFloatToggle').onclick = function() {
@@ -2755,11 +2844,11 @@ function init() {
 
   // Outside trees toggle
   document.getElementById('btnToggleOutsideTrees').textContent =
-    showOutsideTrees ? 'הסר עצים מחוץ לפוליגונים' : 'הוסף עצים מחוץ לפוליגונים';
+    showOutsideTrees ? t('remove_outside_trees') : t('add_outside_trees');
   document.getElementById('btnToggleOutsideTrees').onclick = () => {
     showOutsideTrees = !showOutsideTrees;
     document.getElementById('btnToggleOutsideTrees').textContent =
-      showOutsideTrees ? 'הסר עצים מחוץ לפוליגונים' : 'הוסף עצים מחוץ לפוליגונים';
+      showOutsideTrees ? t('remove_outside_trees') : t('add_outside_trees');
     drawMap();
   };
 
@@ -2774,22 +2863,57 @@ function init() {
   }
 }
 
-function toggleLanguage() {
-  LANG = LANG === 'he' ? 'en' : 'he';
-  localStorage.setItem('shikmim_lang', LANG);
-  const doc = document.documentElement;
-  doc.lang = LANG;
-  doc.dir = LANG === 'he' ? 'rtl' : 'ltr';
-  document.getElementById('btnToggleLang').textContent = t('language');
-  retranslateUI();
-  updateAll();
-}
-
 function retranslateUI() {
+  const doc = document.documentElement;
+  doc.lang = 'en';
+  doc.dir = 'ltr';
+
+  const langBtn = document.getElementById('btnToggleLang');
+  if (langBtn) langBtn.remove();
+
   // Update header
-  document.querySelector('header span:first-child').textContent = LANG === 'he' ? 'דשבורד מחקרי — שקמים, פוליגונים ואזורי-על' : 'Research Dashboard — Sycamores, Polygons & Super-areas';
+  document.querySelector('header span:first-child').textContent = 'Research Dashboard - Sycamores, Polygons & Super-areas';
   // Float panel heading
   document.getElementById('floatTitle').textContent = t('layers_maps');
+  const floatToggle = document.getElementById('btnFloatToggle');
+  if (floatToggle) floatToggle.title = 'Collapse / Expand';
+
+  const basemapSel = document.getElementById('basemapSel');
+  if (basemapSel) {
+    const groups = basemapSel.querySelectorAll('optgroup');
+    if (groups[0]) groups[0].label = 'Base maps';
+    if (groups[1]) groups[1].label = 'Palestine Open Maps';
+    if (groups[2]) groups[2].label = 'Combinations';
+    const optionMap = {
+      osm: 'Modern OSM',
+      sat: 'Satellite (Esri)',
+      pal20k: 'POM 1:20k (1940s)',
+      'pal-1940s': 'POM Combined (1940s)',
+      pal100k: 'POM 1:100k (1950s)',
+      pal250k: 'POM 1:250k (1946)',
+      pal63k: 'POM 1:63k PEF (1880)',
+      isr250k: 'Israel 1:250k (1951)',
+      'osm+pal20k': 'OSM + POM 1:20k',
+      'osm+pal-1940s': 'OSM + POM 1940s',
+      'osm+pal100k': 'OSM + POM 1:100k',
+      'osm+pal250k': 'OSM + POM 1:250k',
+      'osm+pal63k': 'OSM + POM 1:63k PEF',
+      'osm+isr250k': 'OSM + Israel 1:250k',
+    };
+    Array.from(basemapSel.options).forEach(opt => {
+      if (optionMap[opt.value]) opt.textContent = optionMap[opt.value];
+    });
+  }
+
+  const chkPolysSpan = document.getElementById('chkPolysSpan');
+  const chkTreesSpan = document.getElementById('chkTreesSpan');
+  const chkLinesSpan = document.getElementById('chkLinesSpan');
+  const chkLabelsSpan = document.getElementById('chkLabelsSpan');
+  if (chkPolysSpan) chkPolysSpan.textContent = t('polygons');
+  if (chkTreesSpan) chkTreesSpan.textContent = t('trees');
+  if (chkLinesSpan) chkLinesSpan.textContent = t('avenues');
+  if (chkLabelsSpan) chkLabelsSpan.textContent = 'Labels';
+
   // Buttons and inputs
   document.getElementById('btnShowAll').textContent = t('show_all');
   document.getElementById('btnFit').textContent = t('zoom_fit');
@@ -2803,21 +2927,85 @@ function retranslateUI() {
   if (startDrawBtn) startDrawBtn.textContent = t('start_draw_polygon');
   if (finishDrawBtn) finishDrawBtn.textContent = t('finish_draw_polygon');
   if (cancelDrawBtn) cancelDrawBtn.textContent = t('cancel_draw_polygon');
+  const btnToggleOutsideTrees = document.getElementById('btnToggleOutsideTrees');
+  if (btnToggleOutsideTrees) btnToggleOutsideTrees.textContent = showOutsideTrees ? t('remove_outside_trees') : t('add_outside_trees');
   setSpaceEllipseButtonText();
-  const coordsNote = document.querySelector('.float .small.mt8');
-  if (coordsNote) coordsNote.textContent = t('coordinates');
+  document.querySelectorAll('.float .small.mt8').forEach(el => {
+    if (String(el.textContent || '').includes('EPSG')) el.textContent = t('coordinates');
+  });
   // Tabs
   const tabKeyMap = ['overview', 'polygons_tab', 'super_areas_tab', 'analytics', 'advanced', 'groups', 'compare', 'avenues_tab', 'space_type_compare_tab'];
   document.querySelectorAll('.tabbtn').forEach((btn, i) => btn.textContent = t(tabKeyMap[i]));
   // KPI labels
   const kpiKeyMap = ['trees', 'polygons', 'avenues', 'avg_girth', 'avg_height', 'total_area', 'median_girth', 'super_areas', 'avg_density'];
   document.querySelectorAll('.kpi .label').forEach((el, i) => el.textContent = t(kpiKeyMap[i]));
+
+  const cmpTypeA = document.getElementById('cmpTypeA');
+  const cmpTypeB = document.getElementById('cmpTypeB');
+  [cmpTypeA, cmpTypeB].forEach(sel => {
+    if (!sel) return;
+    Array.from(sel.options).forEach(opt => {
+      if (opt.value === 'poly') opt.textContent = t('polygon');
+      if (opt.value === 'group') opt.textContent = t('group');
+      if (opt.value === 'sa') opt.textContent = t('super_area');
+    });
+  });
+
+  const labelSideA = document.getElementById('labelSideA');
+  const labelSideB = document.getElementById('labelSideB');
+  const filterSpaceTypeLabel = document.getElementById('filterSpaceTypeLabel');
+  const filterSALabel = document.getElementById('filterSALabel');
+  const defaultSpacingLabel = document.getElementById('defaultSpacingLabel');
+  const avenuesDesc = document.getElementById('avenuesDesc');
+  const compareDesc = document.getElementById('compareDesc');
+  const groupsDesc = document.getElementById('groupsDesc');
+  const advancedDesc = document.getElementById('advancedDesc');
+  const btnApplySpacing = document.getElementById('btnApplySpacing');
+  if (labelSideA) labelSideA.textContent = t('side_a');
+  if (labelSideB) labelSideB.textContent = t('side_b');
+  if (filterSpaceTypeLabel) filterSpaceTypeLabel.textContent = t('filter_space_type');
+  if (filterSALabel) filterSALabel.textContent = t('filter_sa');
+  if (defaultSpacingLabel) defaultSpacingLabel.textContent = 'Default spacing (m)';
+  if (avenuesDesc) avenuesDesc.textContent = t('avenue_def');
+  if (compareDesc) compareDesc.textContent = t('choose_units');
+  if (groupsDesc) groupsDesc.textContent = 'Create named polygon groups and compare them. Values update dynamically with avenue-tree estimates.';
+  if (advancedDesc) advancedDesc.textContent = 'Advanced analytics: CDF, Lorenz, correlations, and spatial patterns.';
+  if (btnApplySpacing) btnApplySpacing.textContent = 'Apply spacing';
+
+  const stcTitle = document.getElementById('stcTitle');
+  const stcModeByType = document.getElementById('stcModeByType');
+  const stcModeBySpace = document.getElementById('stcModeBySpace');
+  const stcTypeFilter = document.getElementById('stcTypeFilter');
+  const stcSpaceMultiBtn = document.getElementById('stcSpaceMultiBtn');
+  const stcSpaceCheckAllLabel = document.querySelector('label[for="stcSpaceCheckAll"], .stc-multisel-item strong');
+  if (stcTitle) stcTitle.textContent = 'Space Comparison';
+  if (stcModeByType) stcModeByType.textContent = 'By Space Type';
+  if (stcModeBySpace) stcModeBySpace.textContent = 'By Space';
+  if (stcTypeFilter && stcTypeFilter.options.length) stcTypeFilter.options[0].textContent = 'All space types';
+  if (stcSpaceMultiBtn) stcSpaceMultiBtn.textContent = 'All spaces ▾';
+  if (stcSpaceCheckAllLabel) stcSpaceCheckAllLabel.textContent = 'All spaces';
+
+  const cmpFilterSpaceType = document.getElementById('cmpFilterSpaceType');
+  const cmpFilterSA = document.getElementById('cmpFilterSA');
+  if (cmpFilterSpaceType && cmpFilterSpaceType.options.length) cmpFilterSpaceType.options[0].textContent = t('all');
+  if (cmpFilterSA && cmpFilterSA.options.length) cmpFilterSA.options[0].textContent = t('all');
+
+  const groupName = document.getElementById('groupName');
+  const btnSaveGroup = document.getElementById('btnSaveGroup');
+  const btnCompare = document.getElementById('btnCompare');
+  if (groupName) groupName.placeholder = t('group_name');
+  if (btnSaveGroup) btnSaveGroup.textContent = t('save_group');
+  if (btnCompare) btnCompare.textContent = t('compare_btn');
   // Basemap selector label
   const basemapLabel = document.querySelector('label[for="basemapSel"]');
   if (basemapLabel) basemapLabel.textContent = t('layers_maps');
   // Other labels and descriptive text
   const descOverview = document.querySelector('.tab[id="overview"] .card p');
   if (descOverview) descOverview.textContent = t('no_data');
+  const polygonsDesc = document.querySelector('#polygons .small.mb8');
+  if (polygonsDesc) polygonsDesc.textContent = t('click_polygon');
+  const superAreasDesc = document.querySelector('#superareas .small.mb8');
+  if (superAreasDesc) superAreasDesc.textContent = t('super_area_advanced');
   // Chart titles and info buttons
   refreshChartTitles();
 }
