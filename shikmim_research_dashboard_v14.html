@@ -14,41 +14,10 @@ html,body{height:100%;font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:
 :root{--primary:#1e40af;--primary-light:#3b82f6;--accent:#059669;--accent-light:#34d399;--danger:#dc2626;--warn:#f59e0b;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--text:#0f172a;--text2:#475569;--radius:12px;--shadow:0 2px 8px rgba(0,0,0,.08)}
 
 /* === Layout === */
-#app{display:grid;grid-template-rows:56px minmax(0,1fr) auto;height:100vh;overflow:hidden}
+#app{display:grid;grid-template-rows:56px 1fr;height:100vh;overflow:hidden}
 header{background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-weight:700;font-size:15px;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2)}
-header .header-title-group{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
-header .header-project-logo{height:32px;max-width:180px;width:auto;object-fit:contain;flex:0 0 auto}
 header .status{font-size:12px;font-weight:400;opacity:.85}
-.branding-footer{padding:8px 16px;border-top:1px solid var(--border);background:var(--surface2);overflow:visible}
-.branding-footer-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;overflow:visible}
-.branding-logos{display:flex;align-items:center;gap:16px;flex-wrap:wrap;overflow:visible}
-.branding-logo{height:36px;max-height:44px;max-width:100%;width:auto;object-fit:contain;display:block}
-.branding-logo-haifa{max-width:190px}
-.branding-logo-erc{max-width:260px}
-.branding-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-inline-start:auto}
-.branding-text{font-size:12px;color:var(--text2)}
-.branding-credits-btn{padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--text2);font-size:12px;cursor:pointer}
-.branding-credits-btn:hover{border-color:var(--primary);color:var(--primary)}
-.credits-overlay{position:fixed;inset:0;background:rgba(15,23,42,.52);display:none;align-items:center;justify-content:center;z-index:3600;padding:16px}
-.credits-overlay.open{display:flex}
-.credits-modal{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:min(720px,96vw);max-height:88vh;overflow:auto;padding:16px}
-.credits-close{position:absolute;top:10px;left:10px;width:32px;height:32px;border:1px solid var(--border);background:#f1f5f9;border-radius:8px;cursor:pointer;font-size:20px;line-height:1}
-.credits-close:hover{background:#dbeafe}
-.credits-title{margin:0 0 12px 40px;color:var(--primary);font-size:18px}
-.credits-logo-grid{display:flex;flex-wrap:nowrap;gap:16px;align-items:flex-start;justify-content:center}
-.credits-logo{width:auto;max-width:100%;min-width:0;object-fit:contain;display:block}
-.credits-logo-bostan{max-height:110px;flex:0 1 34%}
-.credits-logo-grid .credits-logo-haifa{max-height:72px;flex:0 1 28%}
-.credits-logo-grid .credits-logo-erc{max-height:72px;flex:0 1 28%}
-.credits-lines{margin-top:16px;font-size:14px;color:var(--text2);line-height:1.65;text-align:center}
-.credits-heading,.credits-subheading{color:var(--text);line-height:1.3;text-align:center}
-.credits-heading{font-size:22px;margin:0 0 6px}
-.credits-subheading{font-size:18px;margin:0 0 14px}
-.credits-lines p{margin:0 auto 12px;max-width:62ch}
-.credits-lines p:last-child{margin-bottom:0}
-.credits-lines a{color:var(--primary);font-weight:700}
-.credits-lines a:hover{text-decoration:underline}
-main{display:grid;grid-template-columns:1fr 460px;min-height:0;overflow:hidden}
+main{display:grid;grid-template-columns:1fr 460px;height:calc(100vh - 56px);overflow:hidden}
 
 /* === Map === */
 #mapWrap{position:relative;background:#e2e8f0}
@@ -197,38 +166,6 @@ main{display:grid;grid-template-columns:1fr 460px;min-height:0;overflow:hidden}
 .mb8{margin-bottom:8px}
 .mt8{margin-top:8px}
 
-/* === Full-width mode (Space-Type Compare tab) === */
-main.fullwidth-mode{grid-template-columns:1fr}
-main.fullwidth-mode #mapWrap{display:none}
-
-/* === Space-Type Comparison Tab === */
-#spatypecmp{padding:0;overflow-y:auto}
-.stc-header{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.stc-header h4{margin:0;color:var(--primary);font-size:15px;font-weight:700}
-.stc-header select{padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px;min-width:220px}
-.stc-mode-btns{display:flex;gap:4px;background:#e8edf4;border-radius:8px;padding:3px}
-.stc-mode-btn{padding:5px 14px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text2);transition:background .15s,color .15s}
-.stc-mode-btn.active{background:#fff;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.12)}
-.stc-multisel-wrap{position:relative;display:inline-block}
-.stc-multisel-btn{padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px;cursor:pointer;min-width:180px;text-align:right;font-family:inherit}
-.stc-multisel-panel{position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.14);z-index:200;min-width:210px;max-height:240px;overflow-y:auto;padding:4px 0}
-.stc-multisel-item{display:flex;align-items:center;gap:8px;padding:5px 14px;cursor:pointer;font-size:13px;transition:background .1s}
-.stc-multisel-item:hover{background:#f1f5f9}
-.stc-multisel-item input[type=checkbox]{cursor:pointer;accent-color:var(--primary)}
-.stc-body{padding:14px 16px}
-.stc-type-section{margin-top:18px}
-.stc-type-title{font-size:14px;font-weight:700;color:var(--primary);padding:7px 12px;background:#eff6ff;border-right:4px solid var(--primary);border-radius:0 8px 8px 0;margin-bottom:10px}
-.stc-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}
-.stc-table thead th{background:var(--primary);color:#fff;padding:7px 8px;text-align:right;font-weight:500;white-space:nowrap}
-.stc-table tbody td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
-.stc-table tbody tr:hover{background:#f8fafc}
-.stc-sa-cell{font-weight:700;color:var(--primary);white-space:nowrap}
-.stc-polys-cell{font-size:11px;color:var(--text2);max-width:160px}
-.stc-swatch{display:inline-block;width:11px;height:11px;border-radius:3px;margin-left:5px;vertical-align:middle;flex-shrink:0}
-.stc-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-.stc-chart-half{height:320px}
-.stc-chart-full{height:380px;margin-top:12px}
-
 /* === Responsive === */
 @media(max-width:900px){
   main{grid-template-columns:1fr;grid-template-rows:50vh 1fr}
@@ -243,12 +180,9 @@ main.fullwidth-mode #mapWrap{display:none}
 <body>
 <div id="app">
 <header>
-  <div class="header-title-group">
-    <img class="header-project-logo" src="src/assets/logos/bostan-tree.png" alt="BOSTAN-TREE" />
-    <span>Research Dashboard &mdash; Sycamores, Polygons & Super-areas <small style="font-size:0.7em;opacity:0.75">(v14)</small></span>
-  </div>
+  <span>Research Dashboard &mdash; Sycamores, Polygons & Super-areas <small style="font-size:0.7em;opacity:0.75">(v14)</small></span>
   <div style="display:flex;gap:12px;align-items:center">
-    <span class="status" id="statusText">Loading data...</span>
+<span class="status" id="statusText">Loading data...</span>
   </div>
 </header>
 <main>
@@ -285,7 +219,7 @@ main.fullwidth-mode #mapWrap{display:none}
     <label><input type="checkbox" id="chkPolys" checked> <span class="legendDot" style="background:#2563eb"></span> <span id="chkPolysSpan">Polygons</span></label>
     <label><input type="checkbox" id="chkTrees" checked> <span class="legendDot" style="background:#16a34a"></span> <span id="chkTreesSpan">Trees</span></label>
     <label><input type="checkbox" id="chkLines" checked> <span class="legendDot" style="background:#dc2626"></span> <span id="chkLinesSpan">Avenues</span></label>
-    <label><input type="checkbox" id="chkLabels" checked> <span class="legendDot" style="background:#111827"></span> <span id="chkLabelsSpan">Labels</span></label>
+    <label><input type="checkbox" id="chkLabels" checked> <span class="legendDot" style="background:#111827"></span> <span id="chkLabelsSpan">תוויות</span></label>
     <div class="row">
       <button id="btnShowAll">Show All</button>
       <button id="btnFit">Zoom to Fit</button>
@@ -321,7 +255,7 @@ main.fullwidth-mode #mapWrap{display:none}
     <button class="tabbtn" data-tab="groups">Groups</button>
     <button class="tabbtn" data-tab="compare">Compare</button>
     <button class="tabbtn" data-tab="avenues">Avenues</button>
-    <button class="tabbtn" data-tab="spatypecmp">Space Comparison</button>
+    <button class="tabbtn" data-tab="spatypecmp">השוואת Super-areas</button>
   </div>
 
   <div class="panel tab active" id="overview">
@@ -350,7 +284,7 @@ main.fullwidth-mode #mapWrap{display:none}
     <div style="margin-bottom:10px">
       <button id="btnToggleSpaceEllipses" style="width:100%;padding:9px 14px;border:1.5px solid #2563eb;border-radius:10px;background:#fff;color:#1e40af;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s">Show space ellipses</button>
     </div>
-    <div class="small mb8">Super-areas (grouped by space_code / column E). Click for details.</div>
+    <div class="small mb8">Super-areas (מקובצים לפי space_code / טור E). לחצו לפירוט.</div>
     <div id="saList"></div>
     <div id="saDetail"></div>
     <div id="chartSACompare" class="chartTall"></div>
@@ -369,7 +303,7 @@ main.fullwidth-mode #mapWrap{display:none}
   </div>
 
   <div class="panel tab" id="advanced">
-    <div id="advancedDesc" class="small mb8">Advanced Analysis: CDF, Lorenz, correlations, spatial neighbors, and more</div>
+    <div id="advancedDesc" class="small mb8">Advanced Analysis: CDF, Lorenz, מתאמים, שכנות מרחבית ועוד</div>
     <div id="chartTreemap" class="chartTall"></div>
     <div id="chartCDF" class="chartTall"></div>
     <div id="chartSizeClass" class="chartTall"></div>
@@ -382,7 +316,7 @@ main.fullwidth-mode #mapWrap{display:none}
   </div>
 
   <div class="panel tab" id="groups">
-    <div id="groupsDesc" class="small mb8">You can group polygons into named groups and compare the groups. Values update dynamically with avenue trees.</div>
+    <div id="groupsDesc" class="small mb8">אפשר לאחד Polygons לGroups עם שם, ולהשוות בין הGroups. הנתונים משתנים דינמית עם עצי שדרה.</div>
     <input type="text" id="groupName" placeholder="Group Name" />
     <select multiple id="groupPolys" class="listbox"></select>
     <button id="btnSaveGroup" style="margin-top:6px">Save Group</button>
@@ -391,26 +325,26 @@ main.fullwidth-mode #mapWrap{display:none}
   </div>
 
   <div class="panel tab" id="compare">
-    <div id="compareDesc" class="small mb8">Choose two units to compare: polygon, group, or space. You can also filter by attributes.</div>
+    <div id="compareDesc" class="small mb8">בחרו שתי יחידות לCompare: פוליגון, קבוצה או מרחב. ניתן גם לסנן לפי מאפיינים.</div>
     <div class="cmp-row">
       <div class="cmp-side">
         <label id="labelSideA" class="small">Side A</label>
-        <select id="cmpTypeA"><option value="poly">Polygon</option><option value="group">Group</option><option value="sa">Space</option></select>
+        <select id="cmpTypeA"><option value="poly">פוליגון</option><option value="group">קבוצה</option><option value="sa">מרחב</option></select>
         <select id="cmpSelA"></select>
       </div>
       <div class="cmp-side">
         <label id="labelSideB" class="small">Side B</label>
-        <select id="cmpTypeB"><option value="poly">Polygon</option><option value="group">Group</option><option value="sa">Space</option></select>
+        <select id="cmpTypeB"><option value="poly">פוליגון</option><option value="group">קבוצה</option><option value="sa">מרחב</option></select>
         <select id="cmpSelB"></select>
       </div>
     </div>
     <div class="cmp-filters mt8">
       <label id="filterSpaceTypeLabel" class="small">Filter by space type:</label>
-      <select id="cmpFilterSpaceType"><option value="">All</option></select>
+      <select id="cmpFilterSpaceType"><option value="">הכל</option></select>
       <label id="filterSALabel" class="small" style="margin-right:10px">Filter by super-area:</label>
-      <select id="cmpFilterSA"><option value="">All</option></select>
+      <select id="cmpFilterSA"><option value="">הכל</option></select>
     </div>
-    <button id="btnCompare" class="mt8">Compare</button>
+    <button id="btnCompare" class="mt8">השווה</button>
     <div id="cmpResult"></div>
     <div id="cmpChartBar" class="chartTall"></div>
     <div id="cmpChartRadar" class="chartTall"></div>
@@ -420,7 +354,7 @@ main.fullwidth-mode #mapWrap{display:none}
   </div>
 
   <div class="panel tab" id="avenues">
-    <div id="avenuesDesc" class="small mb8">Set planting spacing → estimate avenue trees → update polygon/group/space data.</div>
+    <div id="avenuesDesc" class="small mb8">הגדרת מרווח שתילה &rarr; אומדן Trees בAvenues &rarr; עדכון נתוני הפוליגון/קבוצה/מרחב.</div>
     <div class="row">
       <div>
         <label id="defaultSpacingLabel" class="small">Default spacing (m)</label>
@@ -436,16 +370,16 @@ main.fullwidth-mode #mapWrap{display:none}
 
   <div class="tab" id="spatypecmp">
     <div class="stc-header">
-      <h4 id="stcTitle">Super-area Comparison</h4>
+      <h4 id="stcTitle">השוואת Super-areas</h4>
       <div class="stc-mode-btns">
         <button class="stc-mode-btn" id="stcModeByType" onclick="setSTCMode('bytype')">By Space Type</button>
         <button class="stc-mode-btn active" id="stcModeBySpace" onclick="setSTCMode('byspace')">By Space</button>
       </div>
       <select id="stcTypeFilter"><option value="">All space types</option></select>
       <div class="stc-multisel-wrap" id="stcSpaceMultiWrap">
-        <button class="stc-multisel-btn" id="stcSpaceMultiBtn" type="button" onclick="toggleSpaceMultiSel()">All super-areas ▾</button>
+        <button class="stc-multisel-btn" id="stcSpaceMultiBtn" type="button" onclick="toggleSpaceMultiSel()">כל הSuper-areas ▾</button>
         <div class="stc-multisel-panel" id="stcSpaceMultiPanel" style="display:none">
-          <label class="stc-multisel-item"><input type="checkbox" id="stcSpaceCheckAll" checked onchange="toggleAllSpaces(this.checked)"> <strong>All super-areas</strong></label>
+          <label class="stc-multisel-item"><input type="checkbox" id="stcSpaceCheckAll" checked onchange="toggleAllSpaces(this.checked)"> <strong>כל הSuper-areas</strong></label>
           <div id="stcSpaceCheckList"></div>
         </div>
       </div>
@@ -467,71 +401,7 @@ main.fullwidth-mode #mapWrap{display:none}
 
 </div>
 </main>
-<footer class="branding-footer" aria-label="Institutional branding">
-  <div class="branding-footer-inner">
-    <div class="branding-logos">
-      <img class="branding-logo branding-logo-haifa" src="src/assets/logos/Haifa uni logo.svg" alt="University of Haifa" />
-      <img class="branding-logo branding-logo-erc" src="src/assets/logos/ERC logo.svg" alt="European Research Council / European Union" />
-    </div>
-    <div class="branding-meta">
-      <span class="branding-text">University of Haifa &middot; European Research Council</span>
-      <button id="btnCredits" type="button" class="branding-credits-btn" aria-haspopup="dialog" aria-controls="creditsDialog">About</button>
-    </div>
-  </div>
-</footer>
 </div>
-
-<div id="creditsDialog" class="credits-overlay" aria-hidden="true">
-  <div class="credits-modal" role="dialog" aria-modal="true" aria-labelledby="creditsTitle">
-    <button id="creditsClose" type="button" class="credits-close" aria-label="Close credits">&times;</button>
-    <h2 id="creditsTitle" class="credits-title">About</h2>
-    <div class="credits-logo-grid">
-      <img class="credits-logo credits-logo-erc" src="src/assets/logos/ERC with text.svg" alt="European Research Council / European Union" />
-      <img class="credits-logo credits-logo-bostan" src="src/assets/logos/BOSTAN TREE logo.svg" alt="BOSTAN TREE" />
-      <img class="credits-logo credits-logo-haifa" src="src/assets/logos/Haifa uni with text.svg" alt="University of Haifa" />
-    </div>
-    <div class="credits-lines">
-      <p class="credits-heading"><strong>Ancient Trees, Living Landscapes</strong></p>
-      <p class="credits-subheading"><strong>Mapping Israel’s Heritage Orchards</strong></p>
-
-      <p>Ancient orchards and heritage fruit trees are living witnesses to the agricultural and cultural history of the Eastern Mediterranean. Many of these landscapes are rapidly disappearing due to urban development, climate change, and the loss of traditional farming systems.</p>
-
-      <p>The <a href="https://www.bostantree.com/" target="_blank" rel="noopener noreferrer">BOSTAN TREE</a> project combines archaeology, genetics, history, and GIS mapping to document and preserve heritage orchards and landrace fruit trees across Israel. Through interactive maps and spatial databases, visitors can explore the distribution of heritage trees, historical orchards, and the agricultural landscapes that shaped them.</p>
-
-      <p>Many of these heritage varieties show remarkable resilience to drought and environmental stress, making them important resources for climate adaptation and the future of sustainable agriculture.</p>
-
-      <p>This platform serves as a gateway to the evolving landscape of heritage orchard research and preservation.</p>
-    </div>
-  </div>
-</div>
-<script>
-  const btnCredits = document.getElementById('btnCredits');
-  const creditsDialog = document.getElementById('creditsDialog');
-  const creditsClose = document.getElementById('creditsClose');
-
-  if (btnCredits && creditsDialog) {
-    btnCredits.addEventListener('click', () => {
-      creditsDialog.classList.add('open');
-      creditsDialog.setAttribute('aria-hidden','false');
-    });
-  }
-
-  if (creditsClose && creditsDialog) {
-    creditsClose.addEventListener('click', () => {
-      creditsDialog.classList.remove('open');
-      creditsDialog.setAttribute('aria-hidden','true');
-    });
-  }
-
-  if (creditsDialog) {
-    creditsDialog.addEventListener('click', (event) => {
-      if (event.target === creditsDialog) {
-        creditsDialog.classList.remove('open');
-        creditsDialog.setAttribute('aria-hidden','true');
-      }
-    });
-  }
-</script>
 <script id="_dataInline" type="application/json">
 {
     "points":  [
@@ -30437,11 +30307,6 @@ const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname
 const hasStaticDataFile = !window.location.protocol.startsWith('file');
 
 const map = L.map('map', { zoomControl: true }).setView([31.67, 34.77], 11);
-const SA_COLOR_PALETTE = [
-  '#e63946','#f4a261','#2a9d8f','#457b9d','#8338ec',
-  '#fb5607','#06d6a0','#118ab2','#ffb703','#d62828',
-  '#3a86ff','#80b918','#c77dff','#ff006e','#0077b6',
-];
 const layers = {
   polys: L.layerGroup().addTo(map),
   spaceEllipses: L.layerGroup().addTo(map),
@@ -30450,15 +30315,6 @@ const layers = {
   labels: L.layerGroup().addTo(map),
   draw: L.layerGroup().addTo(map),
 };
-
-function getSAColorMap() {
-  if (!DATA) return {};
-  const map = {};
-  DATA.superAreas.forEach((sa, i) => {
-    map[sa.code] = SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length];
-  });
-  return map;
-}
 
 /* ---------- tile definitions (all POM layers) ---------- */
 const baseDefs = {
@@ -32900,19 +32756,14 @@ function init() {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(btn.dataset.tab).classList.add('active');
+    // Re-render charts when tab becomes visible (Plotly needs visible containers)
     const tabId = btn.dataset.tab;
     setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
       if (tabId === 'advanced') updateAdvancedCharts();
       if (tabId === 'analytics') updateCharts();
       if (tabId === 'superareas') updateSACharts();
-      if (tabId === 'spatypecmp') { populateSpaceTypeFilter(); renderSpaceTypeCompare(); }
     }, 60);
-    const mainEl = document.querySelector('main');
-    if (mainEl) {
-      if (tabId === 'spatypecmp') mainEl.classList.add('fullwidth-mode');
-      else mainEl.classList.remove('fullwidth-mode');
-    }
   });
 
   // Map controls
@@ -33109,474 +32960,6 @@ function retranslateUI() {
   if (superAreasDesc) superAreasDesc.textContent = t('super_area_advanced');
   // Chart titles and info buttons
   refreshChartTitles();
-}
-
-/* ---------- Space-Type Cross-Analysis ---------- */
-function getAllSpaceTypes() {
-  const types = new Set();
-  (DATA ? DATA.polygons : []).forEach(p => { if (p.space_type) types.add(p.space_type); });
-  return Array.from(types).sort();
-}
-
-let stcViewMode = 'byspace';
-
-function setSTCMode(mode) {
-  stcViewMode = mode;
-  const byType = document.getElementById('stcModeByType');
-  const bySpace = document.getElementById('stcModeBySpace');
-  if (byType) byType.classList.toggle('active', mode === 'bytype');
-  if (bySpace) bySpace.classList.toggle('active', mode === 'byspace');
-  const filter = document.getElementById('stcTypeFilter');
-  if (filter) filter.style.display = mode === 'bytype' ? '' : 'none';
-  const multiWrap = document.getElementById('stcSpaceMultiWrap');
-  if (multiWrap) multiWrap.style.display = mode === 'byspace' ? '' : 'none';
-  if (mode === 'byspace') populateSpaceFilter();
-  renderSpaceTypeCompare();
-}
-
-function populateSpaceFilter() {
-  const list = document.getElementById('stcSpaceCheckList');
-  if (!list || !DATA) return;
-  if (list.innerHTML !== '') return;
-  list.innerHTML = DATA.superAreas.map(sa =>
-    `<label class="stc-multisel-item"><input type="checkbox" class="stc-space-chk" value="${String(sa.code).replace(/"/g,'&quot;')}" checked onchange="onSpaceCheckChange()"> ${String(sa.code).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</label>`
-  ).join('');
-  syncSpaceAllCheck();
-  updateSpaceMultiBtn();
-}
-
-function getSelectedSpaces() {
-  const chks = Array.from(document.querySelectorAll('.stc-space-chk'));
-  if (!chks.length) return [];
-  const checked = chks.filter(c => c.checked).map(c => c.value);
-  if (checked.length === chks.length) return [];
-  return checked;
-}
-
-function toggleSpaceMultiSel() {
-  const panel = document.getElementById('stcSpaceMultiPanel');
-  if (!panel) return;
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-function toggleAllSpaces(checked) {
-  document.querySelectorAll('.stc-space-chk').forEach(c => { c.checked = checked; });
-  syncSpaceAllCheck();
-  updateSpaceMultiBtn();
-  renderSpaceTypeCompare();
-}
-
-function onSpaceCheckChange() {
-  syncSpaceAllCheck();
-  updateSpaceMultiBtn();
-  renderSpaceTypeCompare();
-}
-
-function syncSpaceAllCheck() {
-  const all = document.getElementById('stcSpaceCheckAll');
-  if (!all) return;
-  const chks = Array.from(document.querySelectorAll('.stc-space-chk'));
-  const n = chks.filter(c => c.checked).length;
-  all.checked = n === chks.length;
-  all.indeterminate = n > 0 && n < chks.length;
-}
-
-function updateSpaceMultiBtn() {
-  const btn = document.getElementById('stcSpaceMultiBtn');
-  if (!btn) return;
-  const chks = Array.from(document.querySelectorAll('.stc-space-chk'));
-  const n = chks.filter(c => c.checked).length;
-  if (n === 0) btn.textContent = 'No selection ▾';
-  else if (n === chks.length) btn.textContent = 'All spaces ▾';
-  else btn.textContent = n + ' spaces ▾';
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');
-}
-
-function computeSpaceTypeStats(saCode, spaceType) {
-  const sa = DATA.superAreas.find(s => s.code === saCode);
-  if (!sa) return null;
-  const polys = sa.polygons
-    .map(code => DATA.polygons.find(p => p.polygon === code))
-    .filter(p => p && (spaceType === '' || p.space_type === spaceType));
-  if (!polys.length) return null;
-  let treeCount = 0;
-  let avenueTrees = 0;
-  let totalArea = 0;
-  const girths = [];
-  const heights = [];
-  polys.forEach(p => {
-    const st = computePolyStats(p.polygon);
-    const pts = DATA.points.filter(x => x.polygon === p.polygon);
-    treeCount += pts.length;
-    avenueTrees += st.avenueTrees;
-    totalArea += st.area || 0;
-    pts.forEach(t => {
-      if (t.girth && !isNaN(t.girth) && t.girth > 0) girths.push(t.girth);
-      const h = normalizeHeight(t.height);
-      if (h && !isNaN(h) && h > 0) heights.push(h);
-    });
-  });
-  return {
-    saCode,
-    polyCount: polys.length,
-    polyCodes: polys.map(p => p.polygon),
-    treeCount,
-    avenueTrees,
-    totalTrees: treeCount + avenueTrees,
-    totalArea,
-    avgGirth: mean(girths),
-    medianGirth: median(girths),
-    stdGirth: stddev(girths),
-    minGirth: arrMin(girths),
-    maxGirth: arrMax(girths),
-    avgHeight: mean(heights),
-    medianHeight: median(heights),
-    stdHeight: stddev(heights),
-    density: totalArea > 0 ? (treeCount + avenueTrees) / totalArea : 0,
-    girths,
-    heights,
-    spaceType,
-  };
-}
-
-function buildStcTableBySpace(rows, typeColorMap) {
-  return `<div style="overflow-x:auto"><table class="stc-table">
-    <thead><tr>
-      <th>Space Type</th><th>Polygons</th>
-      <th>Mapped Trees</th><th>Avenue Trees</th><th>Total Trees</th>
-      <th>Avg Girth</th><th>Median Girth</th><th>Std Girth</th><th>Min–Max</th>
-      <th>Avg Height</th><th>Std Height</th><th>Area (acres)</th><th>Density</th>
-    </tr></thead>
-    <tbody>${rows.map(r => `<tr>
-      <td class="stc-sa-cell"><span class="stc-swatch" style="background:${typeColorMap[r.spaceType] || '#888'}"></span>${escHtml(r.spaceType)}</td>
-      <td class="stc-polys-cell">${r.polyCodes.map(code => escHtml(code)).join(', ')} <em>(${r.polyCount})</em></td>
-      <td>${r.treeCount}</td><td>${r.avenueTrees}</td><td><strong>${r.totalTrees}</strong></td>
-      <td>${fmt(r.avgGirth)}</td><td>${fmt(r.medianGirth)}</td><td>${fmt(r.stdGirth)}</td>
-      <td>${fmt(r.minGirth)}–${fmt(r.maxGirth)}</td>
-      <td>${fmt(r.avgHeight)}</td><td>${fmt(r.stdHeight)}</td><td>${fmt(r.totalArea)}</td><td>${fmt(r.density, 3)}</td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
-}
-
-function buildStcTable(rows, colorMap) {
-  return `<div style="overflow-x:auto"><table class="stc-table">
-    <thead><tr>
-      <th>Space</th><th>Polygons</th>
-      <th>Mapped Trees</th><th>Avenue Trees</th><th>Total Trees</th>
-      <th>Avg Girth</th><th>Median Girth</th><th>Std Girth</th><th>Min–Max</th>
-      <th>Avg Height</th><th>Std Height</th><th>Area (acres)</th><th>Density</th>
-    </tr></thead>
-    <tbody>${rows.map(r => `<tr>
-      <td class="stc-sa-cell"><span class="stc-swatch" style="background:${colorMap[r.saCode] || '#888'}"></span>${escHtml(r.saCode)}</td>
-      <td class="stc-polys-cell">${r.polyCodes.map(code => escHtml(code)).join(', ')} <em>(${r.polyCount})</em></td>
-      <td>${r.treeCount}</td><td>${r.avenueTrees}</td><td><strong>${r.totalTrees}</strong></td>
-      <td>${fmt(r.avgGirth)}</td><td>${fmt(r.medianGirth)}</td><td>${fmt(r.stdGirth)}</td>
-      <td>${fmt(r.minGirth)}–${fmt(r.maxGirth)}</td>
-      <td>${fmt(r.avgHeight)}</td><td>${fmt(r.stdHeight)}</td><td>${fmt(r.totalArea)}</td><td>${fmt(r.density, 3)}</td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
-}
-
-function populateSpaceTypeFilter() {
-  const sel = document.getElementById('stcTypeFilter');
-  if (!sel || !DATA) return;
-  const current = sel.value;
-  const types = getAllSpaceTypes();
-  sel.innerHTML = '<option value="">כל סוגי המרחב</option>' +
-    types.map(tp => `<option value="${escHtml(tp)}"${tp === current ? ' selected' : ''}>${escHtml(tp)}</option>`).join('');
-}
-
-function getTypeColorMap() {
-  const types = getAllSpaceTypes();
-  const m = {};
-  types.forEach((tp, i) => { m[tp] = SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length]; });
-  return m;
-}
-
-function renderSpaceTypeCompare() {
-  if (!DATA) return;
-  const filter = document.getElementById('stcTypeFilter');
-  if (filter) filter.style.display = stcViewMode === 'bytype' ? '' : 'none';
-  const multiWrap = document.getElementById('stcSpaceMultiWrap');
-  if (multiWrap) multiWrap.style.display = stcViewMode === 'byspace' ? '' : 'none';
-  const colorMap = getSAColorMap();
-  const typeColorMap = getTypeColorMap();
-  const tableArea = document.getElementById('stcTableArea');
-
-  if (stcViewMode === 'byspace') {
-    populateSpaceFilter();
-    const selectedSpaces = getSelectedSpaces();
-    const spacesToShow = selectedSpaces.length === 0 ? DATA.superAreas.map(sa => sa.code) : selectedSpaces;
-    if (selectedSpaces.length === 1) {
-      const rows = computeSpaceStats(selectedSpaces[0]);
-      tableArea.innerHTML = rows.length ? buildStcTableBySpace(rows, typeColorMap) : '<div class="small" style="padding:10px;color:var(--text2)">No data</div>';
-    } else {
-      tableArea.innerHTML = spacesToShow.map(code => {
-        const rows = computeSpaceStats(code);
-        if (!rows.length) return '';
-        return `<div class="stc-type-section"><div class="stc-type-title"><span class="stc-swatch" style="background:${colorMap[code] || '#888'}"></span>${escHtml(code)}</div>${buildStcTableBySpace(rows, typeColorMap)}</div>`;
-      }).join('');
-    }
-    updateSTCChartsBySpace(selectedSpaces, colorMap, typeColorMap);
-  } else {
-    populateSpaceTypeFilter();
-    const spaceType = document.getElementById('stcTypeFilter').value;
-    if (spaceType === '') {
-      const types = getAllSpaceTypes();
-      tableArea.innerHTML = types.map(tp => {
-        const rows = DATA.superAreas.map(sa => computeSpaceTypeStats(sa.code, tp)).filter(Boolean);
-        if (!rows.length) return '';
-        return `<div class="stc-type-section"><div class="stc-type-title">${escHtml(tp)}</div>${buildStcTable(rows, colorMap)}</div>`;
-      }).join('');
-    } else {
-      const rows = DATA.superAreas.map(sa => computeSpaceTypeStats(sa.code, spaceType)).filter(Boolean);
-      tableArea.innerHTML = rows.length ? buildStcTable(rows, colorMap) : '<div class="small" style="padding:10px;color:var(--text2)">No data</div>';
-    }
-    updateSTCCharts(spaceType, colorMap);
-  }
-}
-
-function computeSpaceStats(saCode) {
-  const sa = DATA.superAreas.find(s => s.code === saCode);
-  if (!sa) return [];
-  const allTypes = [...new Set(sa.polygons
-    .map(code => DATA.polygons.find(p => p.polygon === code))
-    .filter(Boolean)
-    .map(p => p.space_type)
-    .filter(Boolean))].sort();
-  return allTypes.map(spaceType => {
-    const r = computeSpaceTypeStats(saCode, spaceType);
-    if (!r) return null;
-    return Object.assign(r, { spaceType });
-  }).filter(Boolean);
-}
-
-function updateSTCChartsBySpace(saCodes, colorMap, typeColorMap) {
-  const allSpaceCodes = DATA.superAreas.map(sa => sa.code);
-  const spacesToShow = saCodes.length === 0 ? allSpaceCodes : saCodes;
-  const spaceSAs = spacesToShow.map(code => DATA.superAreas.find(sa => sa.code === code)).filter(Boolean);
-  const types = getAllSpaceTypes();
-
-  const zVals = types.map(tp => allSpaceCodes.map(sc => {
-    const r = computeSpaceTypeStats(sc, tp);
-    return r ? r.totalTrees : 0;
-  }));
-  Plotly.newPlot('chartSTCHeatmap', [{
-    type: 'heatmap', z: zVals, x: allSpaceCodes, y: types, colorscale: 'YlGn',
-    hovertemplate: 'Space: %{x}<br>Type: %{y}<br>Trees: %{z}<extra></extra>',
-  }], {
-    title: 'Tree Matrix: Space × Space Type',
-    xaxis: { title: 'Space' },
-    yaxis: { title: 'Space Type', automargin: true },
-    margin: { t: 50, b: 60, l: 200, r: 20 },
-  }, { responsive: true });
-
-  if (saCodes.length !== 1) {
-    Plotly.newPlot('chartSTCTrees',
-      spaceSAs.map(sa => ({
-        name: sa.code, type: 'bar', x: types,
-        y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? r.totalTrees : 0; }),
-        marker: { color: colorMap[sa.code] || '#888' },
-      })),
-      { title: 'Trees by Space Type and Space', barmode: 'group', xaxis: { title: 'Space Type' }, yaxis: { title: 'Trees' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCGirth',
-      spaceSAs.map(sa => ({
-        name: sa.code, type: 'bar', x: types,
-        y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.avgGirth || 0) : 0; }),
-        marker: { color: colorMap[sa.code] || '#888' },
-      })),
-      { title: 'Average Girth by Space Type and Space', barmode: 'group', xaxis: { title: 'Space Type' }, yaxis: { title: 'Girth (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCHeight', [
-      ...spaceSAs.map(sa => ({
-        name: sa.code + ' average', type: 'bar', x: types,
-        y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.avgHeight || 0) : 0; }),
-        marker: { color: colorMap[sa.code] || '#888' },
-      })),
-      ...spaceSAs.map(sa => ({
-        name: sa.code + ' std', type: 'bar', x: types,
-        y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.stdHeight || 0) : 0; }),
-        marker: { color: colorMap[sa.code] || '#888', opacity: 0.5 },
-      })),
-    ], { title: 'Height by Space Type and Space', barmode: 'group', xaxis: { title: 'Space Type' }, yaxis: { title: 'Height (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCDensity',
-      spaceSAs.map(sa => ({
-        name: sa.code, type: 'bar', x: types,
-        y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.density || 0) : 0; }),
-        marker: { color: colorMap[sa.code] || '#888' },
-      })),
-      { title: 'Density by Space Type and Space', barmode: 'group', xaxis: { title: 'Space Type' }, yaxis: { title: 'Density (trees/acre)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCArea',
-      spaceSAs.map(sa => ({
-        name: sa.code, type: 'bar', x: types,
-        y: types.map(tp => { const r = computeSpaceTypeStats(sa.code, tp); return r ? (r.totalArea || 0) : 0; }),
-        marker: { color: colorMap[sa.code] || '#888' },
-      })),
-      { title: 'Area by Space Type and Space', barmode: 'stack', xaxis: { title: 'Space Type' }, yaxis: { title: 'Area (acres)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCBox',
-      types.map(tp => ({
-        type: 'box', name: tp, boxpoints: 'outliers',
-        marker: { color: typeColorMap[tp] || '#888' },
-        y: spaceSAs.flatMap(sa => sa.polygons
-          .map(code => DATA.polygons.find(p => p.polygon === code))
-          .filter(p => p && p.space_type === tp)
-          .flatMap(p => DATA.points.filter(t => t.polygon === p.polygon).map(t => t.girth).filter(g => g && !isNaN(g) && g > 0))),
-      })),
-      { title: 'Girth Spread by Space Type', yaxis: { title: 'Girth (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCScatter', [], { title: '' }, { responsive: true });
-  } else {
-    const saCode = saCodes[0];
-    const rows = computeSpaceStats(saCode);
-    const label = ` — ${saCode}`;
-    Plotly.newPlot('chartSTCTrees', [
-      { x: rows.map(r => r.spaceType), y: rows.map(r => r.treeCount), type: 'bar', name: 'Mapped', marker: { color: rows.map(r => typeColorMap[r.spaceType] || '#888') } },
-      { x: rows.map(r => r.spaceType), y: rows.map(r => r.avenueTrees), type: 'bar', name: 'Avenues', marker: { color: rows.map(r => (typeColorMap[r.spaceType] || '#888')) } },
-    ], { title: 'Trees by Space Type' + label, barmode: 'stack', xaxis: { title: 'Space Type' }, yaxis: { title: 'Trees' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCGirth', [
-      { x: rows.map(r => r.spaceType), y: rows.map(r => r.avgGirth || 0), type: 'bar', name: 'Average', marker: { color: rows.map(r => typeColorMap[r.spaceType] || '#888') } },
-      { x: rows.map(r => r.spaceType), y: rows.map(r => r.medianGirth || 0), type: 'bar', name: 'Median', marker: { color: '#94a3b8', opacity: 0.7 } },
-      { x: rows.map(r => r.spaceType), y: rows.map(r => r.stdGirth || 0), type: 'bar', name: 'Std', marker: { color: '#f59e0b', opacity: 0.7 } },
-    ], { title: 'Girth by Space Type' + label, barmode: 'group', xaxis: { title: 'Space Type' }, yaxis: { title: 'Girth (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCHeight', [
-      { x: rows.map(r => r.spaceType), y: rows.map(r => r.avgHeight || 0), type: 'bar', name: 'Avg Height', marker: { color: rows.map(r => typeColorMap[r.spaceType] || '#888') } },
-      { x: rows.map(r => r.spaceType), y: rows.map(r => r.stdHeight || 0), type: 'bar', name: 'Std', marker: { color: '#8b5cf6', opacity: 0.7 } },
-    ], { title: 'Height by Space Type' + label, barmode: 'group', xaxis: { title: 'Space Type' }, yaxis: { title: 'Height (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCDensity', [{ x: rows.map(r => r.spaceType), y: rows.map(r => r.density || 0), type: 'bar', marker: { color: rows.map(r => typeColorMap[r.spaceType] || '#888') } }], { title: 'Density by Space Type' + label, xaxis: { title: 'Space Type' }, yaxis: { title: 'Density (trees/acre)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCArea', [{ x: rows.map(r => r.spaceType), y: rows.map(r => r.totalArea || 0), type: 'bar', marker: { color: rows.map(r => typeColorMap[r.spaceType] || '#888') } }], { title: 'Area by Space Type' + label, xaxis: { title: 'Space Type' }, yaxis: { title: 'Area (acres)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCBox', rows.map(r => ({ type: 'box', name: r.spaceType, y: r.girths, boxpoints: 'outliers', marker: { color: typeColorMap[r.spaceType] || '#888' } })), { title: 'Girth Spread by Space Type' + label, yaxis: { title: 'Girth (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    const scTraces = rows.map(r => {
-      const polys = r.polyCodes.map(code => DATA.polygons.find(p => p.polygon === code)).filter(Boolean);
-      const stats = polys.map(p => computePolyStats(p.polygon));
-      return {
-        type: 'scatter', mode: 'markers+text', name: r.spaceType,
-        x: stats.map(s => s.area || 0), y: stats.map(s => s.totalTrees),
-        text: polys.map(p => p.polygon), textposition: 'top center', textfont: { size: 10 },
-        marker: { size: 10, color: typeColorMap[r.spaceType] || '#888' },
-      };
-    });
-    Plotly.newPlot('chartSTCScatter', scTraces, { title: 'Area vs Trees by Polygon' + label, xaxis: { title: 'Area (acres)' }, yaxis: { title: 'Trees' }, margin: { t: 40, b: 80 } }, { responsive: true });
-  }
-}
-
-function updateSTCCharts(spaceType, colorMap) {
-  const types = getAllSpaceTypes();
-  const spaces = DATA.superAreas.map(sa => sa.code);
-  const zVals = types.map(tp => spaces.map(sc => {
-    const r = computeSpaceTypeStats(sc, tp);
-    return r ? r.totalTrees : 0;
-  }));
-  Plotly.newPlot('chartSTCHeatmap', [{
-    type: 'heatmap', z: zVals, x: spaces, y: types, colorscale: 'YlGn',
-    hovertemplate: 'Space: %{x}<br>Type: %{y}<br>Trees: %{z}<extra></extra>',
-  }], { title: 'Tree Matrix: Space × Space Type', xaxis: { title: 'Space' }, yaxis: { title: 'Space Type', automargin: true }, margin: { t: 50, b: 60, l: 200, r: 20 } }, { responsive: true });
-
-  if (spaceType === '') {
-    Plotly.newPlot('chartSTCTrees',
-      types.map((tp, i) => ({
-        name: tp, type: 'bar', x: spaces,
-        y: spaces.map(sc => { const r = computeSpaceTypeStats(sc, tp); return r ? r.totalTrees : 0; }),
-        marker: { color: SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length] },
-      })),
-      { title: 'Trees by Space and Space Type', barmode: 'stack', xaxis: { title: 'Space' }, yaxis: { title: 'Trees' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCGirth',
-      types.map((tp, i) => ({
-        name: tp, type: 'bar', x: spaces,
-        y: spaces.map(sc => { const r = computeSpaceTypeStats(sc, tp); return r ? (r.avgGirth || 0) : 0; }),
-        marker: { color: SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length] },
-      })),
-      { title: 'Average Girth by Space and Space Type', barmode: 'group', xaxis: { title: 'Space' }, yaxis: { title: 'Girth (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCHeight', [
-      ...types.map((tp, i) => ({
-        name: tp + ' average', type: 'bar', x: spaces,
-        y: spaces.map(sc => { const r = computeSpaceTypeStats(sc, tp); return r ? (r.avgHeight || 0) : 0; }),
-        marker: { color: SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length] },
-      })),
-      ...types.map((tp, i) => ({
-        name: tp + ' std', type: 'bar', x: spaces,
-        y: spaces.map(sc => { const r = computeSpaceTypeStats(sc, tp); return r ? (r.stdHeight || 0) : 0; }),
-        marker: { color: SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length], opacity: 0.5 },
-      })),
-    ], { title: 'Height by Space and Space Type', barmode: 'group', xaxis: { title: 'Space' }, yaxis: { title: 'Height (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCDensity',
-      types.map((tp, i) => ({
-        name: tp, type: 'bar', x: spaces,
-        y: spaces.map(sc => { const r = computeSpaceTypeStats(sc, tp); return r ? (r.density || 0) : 0; }),
-        marker: { color: SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length] },
-      })),
-      { title: 'Density by Space and Space Type', barmode: 'group', xaxis: { title: 'Space' }, yaxis: { title: 'Density (trees/acre)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCArea',
-      types.map((tp, i) => ({
-        name: tp, type: 'bar', x: spaces,
-        y: spaces.map(sc => { const r = computeSpaceTypeStats(sc, tp); return r ? (r.totalArea || 0) : 0; }),
-        marker: { color: SA_COLOR_PALETTE[i % SA_COLOR_PALETTE.length] },
-      })),
-      { title: 'Area by Space and Space Type', barmode: 'stack', xaxis: { title: 'Space' }, yaxis: { title: 'Area (acres)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCBox',
-      DATA.superAreas.map(sa => ({
-        type: 'box', name: sa.code, boxpoints: 'outliers',
-        marker: { color: colorMap[sa.code] || '#888' },
-        y: sa.polygons.flatMap(code => DATA.points.filter(t => t.polygon === code).map(t => t.girth).filter(g => g && !isNaN(g) && g > 0)),
-      })),
-      { title: 'Girth Spread by Space (all types)', yaxis: { title: 'Girth (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCScatter', [], { title: '' }, { responsive: true });
-  } else {
-    const rows = DATA.superAreas.map(sa => computeSpaceTypeStats(sa.code, spaceType)).filter(Boolean);
-    const colors = rows.map(r => colorMap[r.saCode] || '#888');
-    Plotly.newPlot('chartSTCTrees', [
-      { x: rows.map(r => r.saCode), y: rows.map(r => r.treeCount), type: 'bar', name: 'Mapped', marker: { color: colors } },
-      { x: rows.map(r => r.saCode), y: rows.map(r => r.avenueTrees), type: 'bar', name: 'Avenues', marker: { color: colors.map(c => c + '88') } },
-    ], { title: 'Trees by Space — ' + spaceType, barmode: 'stack', xaxis: { title: 'Space' }, yaxis: { title: 'Trees' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCGirth', [
-      { x: rows.map(r => r.saCode), y: rows.map(r => r.avgGirth || 0), type: 'bar', name: 'Average', marker: { color: colors } },
-      { x: rows.map(r => r.saCode), y: rows.map(r => r.medianGirth || 0), type: 'bar', name: 'Median', marker: { color: '#94a3b8', opacity: 0.7 } },
-      { x: rows.map(r => r.saCode), y: rows.map(r => r.stdGirth || 0), type: 'bar', name: 'Std', marker: { color: '#f59e0b', opacity: 0.7 } },
-    ], { title: 'Girth by Space — ' + spaceType, barmode: 'group', xaxis: { title: 'Space' }, yaxis: { title: 'Girth (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCHeight', [
-      { x: rows.map(r => r.saCode), y: rows.map(r => r.avgHeight || 0), type: 'bar', name: 'Avg Height', marker: { color: colors } },
-      { x: rows.map(r => r.saCode), y: rows.map(r => r.stdHeight || 0), type: 'bar', name: 'Std', marker: { color: '#8b5cf6', opacity: 0.7 } },
-    ], { title: 'Height by Space — ' + spaceType, barmode: 'group', xaxis: { title: 'Space' }, yaxis: { title: 'Height (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCDensity', [{ x: rows.map(r => r.saCode), y: rows.map(r => r.density || 0), type: 'bar', marker: { color: colors } }], { title: 'Density by Space — ' + spaceType, xaxis: { title: 'Space' }, yaxis: { title: 'Density (trees/acre)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCArea', [{ x: rows.map(r => r.saCode), y: rows.map(r => r.totalArea || 0), type: 'bar', marker: { color: colors } }], { title: 'Area by Space — ' + spaceType, xaxis: { title: 'Space' }, yaxis: { title: 'Area (acres)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    Plotly.newPlot('chartSTCBox', rows.map(r => ({ type: 'box', name: r.saCode, y: r.girths, boxpoints: 'outliers', marker: { color: colorMap[r.saCode] || '#888' } })), { title: 'Girth Spread by Space — ' + spaceType, yaxis: { title: 'Girth (cm)' }, margin: { t: 40, b: 80 } }, { responsive: true });
-
-    const scTraces = DATA.superAreas.map(sa => {
-      const saPolys = sa.polygons.map(code => DATA.polygons.find(p => p.polygon === code)).filter(p => p && p.space_type === spaceType);
-      if (!saPolys.length) return null;
-      const stats = saPolys.map(p => computePolyStats(p.polygon));
-      return {
-        type: 'scatter', mode: 'markers+text', name: sa.code,
-        x: stats.map(s => s.area || 0), y: stats.map(s => s.totalTrees),
-        text: saPolys.map(p => p.polygon), textposition: 'top center', textfont: { size: 10 },
-        marker: { size: 10, color: colorMap[sa.code] || '#888' },
-      };
-    }).filter(Boolean);
-    Plotly.newPlot('chartSTCScatter', scTraces, { title: 'Area vs Trees by Polygon — ' + spaceType, xaxis: { title: 'Area (acres)' }, yaxis: { title: 'Trees' }, margin: { t: 40, b: 80 } }, { responsive: true });
-  }
 }
 
 /* ---------- launch ---------- */

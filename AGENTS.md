@@ -4,18 +4,12 @@ This file helps coding agents become productive quickly in this repository.
 
 ## Project Snapshot
 
-- Core app: `app.js` (main UI/state/map/charts logic), `style.css`, `data.json`.
-- Entry page: `index.html` redirects to the latest versioned dashboard (`shikmim_research_dashboard_v12.html`).
-- Local tooling: `server.js` (static hosting + `/api/update`) and `updateFromSheets.js` (regenerates `data.json`).
-- Versioned bundles: `shikmim_research_dashboard_v10.html`, `shikmim_research_dashboard_v11.html`, `shikmim_research_dashboard_v12.html` plus build scripts.
+- Entry page: `index.html` redirects to the latest versioned dashboard (`shikmim_research_dashboard_v14.html`).
+- The active generated bundle is `shikmim_research_dashboard_v14.html`; older bundles and obsolete build scripts are stored under `archive/legacy-versions/`.
 
 For full product/background documentation, see [README.md](README.md).
 
-## Run And Update Commands
-
-- Local server (recommended): `node server.js`
-- Local server on custom port: `node server.js 3000`
-- Static-only local serve (no update API): `python -m http.server 8080`
+- The active build script in the root inlines `style.css`, `data.json`, and `app.js` into the current versioned HTML file. Older build scripts remain under `archive/legacy-versions/` for provenance.
 - Regenerate data from Google Sheets/local CSV fallback: `node updateFromSheets.js`
 - Trigger data refresh through local API: `curl http://localhost:8080/api/update`
 - Rebuild versioned bundles:

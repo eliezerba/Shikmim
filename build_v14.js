@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const srcHtml = fs.readFileSync('shikmim_research_dashboard_v13.html', 'utf8');
+const srcHtml = fs.readFileSync('archive/legacy-versions/shikmim_research_dashboard_v13.html', 'utf8');
 const css = fs.readFileSync('style.css', 'utf8');
 const dataJson = fs.readFileSync('data.json', 'utf8');
 const appJs = fs.readFileSync('app.js', 'utf8');
