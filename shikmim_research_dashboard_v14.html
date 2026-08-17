@@ -14,10 +14,36 @@ html,body{height:100%;font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:
 :root{--primary:#1e40af;--primary-light:#3b82f6;--accent:#059669;--accent-light:#34d399;--danger:#dc2626;--warn:#f59e0b;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--text:#0f172a;--text2:#475569;--radius:12px;--shadow:0 2px 8px rgba(0,0,0,.08)}
 
 /* === Layout === */
-#app{display:grid;grid-template-rows:56px 1fr;height:100vh;overflow:hidden}
+#app{display:grid;grid-template-rows:56px minmax(0,1fr) auto;height:100vh;overflow:hidden}
 header{background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-weight:700;font-size:15px;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2)}
 header .status{font-size:12px;font-weight:400;opacity:.85}
-main{display:grid;grid-template-columns:1fr 460px;height:calc(100vh - 56px);overflow:hidden}
+main{display:grid;grid-template-columns:1fr 460px;min-height:0;overflow:hidden}
+.branding-footer{padding:8px 16px;border-top:1px solid var(--border);background:var(--surface2);overflow:visible}
+.branding-footer-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;overflow:visible}
+.branding-logos{display:flex;align-items:center;gap:16px;flex-wrap:wrap;overflow:visible}
+.branding-logo{height:36px;max-height:44px;max-width:100%;width:auto;object-fit:contain;display:block}
+.branding-logo-haifa{max-width:190px}
+.branding-logo-erc{max-width:260px}
+.branding-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-inline-start:auto}
+.branding-text{font-size:12px;color:var(--text2)}
+.branding-credits-btn{padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--text2);font-size:12px;cursor:pointer}
+.branding-credits-btn:hover{border-color:var(--primary);color:var(--primary)}
+.credits-overlay{position:fixed;inset:0;background:rgba(15,23,42,.52);display:none;align-items:center;justify-content:center;z-index:3600;padding:16px}
+.credits-overlay.open{display:flex}
+.credits-modal{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:min(720px,96vw);max-height:88vh;overflow:auto;padding:16px}
+.credits-close{position:absolute;top:10px;left:10px;width:32px;height:32px;border:1px solid var(--border);background:#f1f5f9;border-radius:8px;cursor:pointer;font-size:20px;line-height:1}
+.credits-title{margin:0 0 12px 40px;color:var(--primary);font-size:18px}
+.credits-logo-grid{display:flex;flex-wrap:nowrap;gap:16px;align-items:flex-start;justify-content:center}
+.credits-logo{width:auto;max-width:100%;min-width:0;object-fit:contain;display:block}
+.credits-logo-bostan{max-height:110px;flex:0 1 34%}
+.credits-logo-grid .credits-logo-haifa{max-height:72px;flex:0 1 28%}
+.credits-logo-grid .credits-logo-erc{max-height:72px;flex:0 1 28%}
+.credits-lines{margin-top:16px;font-size:14px;color:var(--text2);line-height:1.65;text-align:center}
+.credits-heading,.credits-subheading{color:var(--text);line-height:1.3;text-align:center}
+.credits-heading{font-size:22px;margin:0 0 6px}
+.credits-subheading{font-size:18px;margin:0 0 14px}
+.credits-lines p{margin:0 auto 12px;max-width:62ch}
+.credits-lines a{color:var(--primary);font-weight:700}
 
 /* === Map === */
 #mapWrap{position:relative;background:#e2e8f0}
@@ -401,6 +427,35 @@ main{display:grid;grid-template-columns:1fr 460px;height:calc(100vh - 56px);over
 
 </div>
 </main>
+<footer class="branding-footer" aria-label="Institutional branding">
+    <div class="branding-footer-inner">
+        <div class="branding-logos">
+            <img class="branding-logo branding-logo-haifa" src="src/assets/logos/Haifa uni logo.svg" alt="University of Haifa" />
+            <img class="branding-logo branding-logo-erc" src="src/assets/logos/ERC logo.svg" alt="European Research Council / European Union" />
+        </div>
+        <div class="branding-meta">
+            <span class="branding-text">University of Haifa &middot; European Research Council</span>
+            <button id="btnCredits" type="button" class="branding-credits-btn" aria-haspopup="dialog" aria-controls="creditsDialog">About</button>
+        </div>
+    </div>
+</footer>
+</div>
+<div id="creditsDialog" class="credits-overlay" aria-hidden="true">
+    <div class="credits-modal" role="dialog" aria-modal="true" aria-labelledby="creditsTitle">
+        <button id="creditsClose" type="button" class="credits-close" aria-label="Close credits">&times;</button>
+        <h2 id="creditsTitle" class="credits-title">About</h2>
+        <div class="credits-logo-grid">
+            <img class="credits-logo credits-logo-erc" src="src/assets/logos/ERC with text.svg" alt="European Research Council / European Union" />
+            <img class="credits-logo credits-logo-bostan" src="src/assets/logos/BOSTAN TREE logo.svg" alt="BOSTAN TREE" />
+            <img class="credits-logo credits-logo-haifa" src="src/assets/logos/Haifa uni with text.svg" alt="University of Haifa" />
+        </div>
+        <div class="credits-lines">
+            <p class="credits-heading"><strong>Ancient Trees, Living Landscapes</strong></p>
+            <p class="credits-subheading"><strong>Mapping Israel's Heritage Orchards</strong></p>
+            <p>This platform documents and preserves heritage orchards and landrace fruit trees through archaeology, genetics, history, and GIS mapping.</p>
+            <p>The research dataset and accompanying code are available in the <a href="https://doi.org/10.5281/zenodo.21978527" target="_blank" rel="noopener noreferrer">citable Zenodo archive</a>.</p>
+        </div>
+    </div>
 </div>
 <script id="_dataInline" type="application/json">
 {
@@ -32964,6 +33019,30 @@ function retranslateUI() {
 
 /* ---------- launch ---------- */
 loadData();
+
+const btnCredits = document.getElementById('btnCredits');
+const creditsDialog = document.getElementById('creditsDialog');
+const creditsClose = document.getElementById('creditsClose');
+if (btnCredits && creditsDialog) {
+  btnCredits.addEventListener('click', () => {
+    creditsDialog.classList.add('open');
+    creditsDialog.setAttribute('aria-hidden', 'false');
+  });
+}
+if (creditsClose && creditsDialog) {
+  creditsClose.addEventListener('click', () => {
+    creditsDialog.classList.remove('open');
+    creditsDialog.setAttribute('aria-hidden', 'true');
+  });
+}
+if (creditsDialog) {
+  creditsDialog.addEventListener('click', event => {
+    if (event.target === creditsDialog) {
+      creditsDialog.classList.remove('open');
+      creditsDialog.setAttribute('aria-hidden', 'true');
+    }
+  });
+}
 
 </script>
 </body>

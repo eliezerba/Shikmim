@@ -3012,3 +3012,27 @@ function retranslateUI() {
 
 /* ---------- launch ---------- */
 loadData();
+
+const btnCredits = document.getElementById('btnCredits');
+const creditsDialog = document.getElementById('creditsDialog');
+const creditsClose = document.getElementById('creditsClose');
+if (btnCredits && creditsDialog) {
+  btnCredits.addEventListener('click', () => {
+    creditsDialog.classList.add('open');
+    creditsDialog.setAttribute('aria-hidden', 'false');
+  });
+}
+if (creditsClose && creditsDialog) {
+  creditsClose.addEventListener('click', () => {
+    creditsDialog.classList.remove('open');
+    creditsDialog.setAttribute('aria-hidden', 'true');
+  });
+}
+if (creditsDialog) {
+  creditsDialog.addEventListener('click', event => {
+    if (event.target === creditsDialog) {
+      creditsDialog.classList.remove('open');
+      creditsDialog.setAttribute('aria-hidden', 'true');
+    }
+  });
+}
