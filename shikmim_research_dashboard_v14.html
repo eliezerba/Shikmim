@@ -18,6 +18,8 @@ html,body{height:100%;font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:
 header{background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-weight:700;font-size:15px;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2)}
 header .status{font-size:12px;font-weight:400;opacity:.85}
 main{display:grid;grid-template-columns:1fr 460px;min-height:0;overflow:hidden}
+main.fullwidth-mode{grid-template-columns:1fr}
+main.fullwidth-mode #mapWrap{display:none}
 .branding-footer{padding:8px 16px;border-top:1px solid var(--border);background:var(--surface2);overflow:visible}
 .branding-footer-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;overflow:visible}
 .branding-logos{display:flex;align-items:center;gap:16px;flex-wrap:wrap;overflow:visible}
@@ -140,6 +142,31 @@ main{display:grid;grid-template-columns:1fr 460px;min-height:0;overflow:hidden}
 .chart-info-section p{margin:0;color:var(--text);line-height:1.45}
 .chart-info-section ul{margin:0;padding-inline-start:18px;color:var(--text);line-height:1.45}
 
+/* === Space comparison === */
+.stc-header{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.stc-header h4{margin:0;color:var(--primary);font-size:15px;font-weight:700}
+.stc-header select{padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px;min-width:220px}
+.stc-mode-btns{display:flex;gap:4px;background:#e8edf4;border-radius:8px;padding:3px}
+.stc-mode-btn{padding:5px 14px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text2)}
+.stc-mode-btn.active{background:#fff;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.stc-multisel-wrap{position:relative;display:inline-block}
+.stc-multisel-btn{padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px;cursor:pointer;min-width:180px;text-align:left;font-family:inherit}
+.stc-multisel-panel{position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.14);z-index:200;min-width:210px;max-height:240px;overflow-y:auto;padding:4px 0}
+.stc-multisel-item{display:flex;align-items:center;gap:8px;padding:5px 14px;cursor:pointer;font-size:13px}
+.stc-multisel-item:hover{background:#f1f5f9}
+.stc-body{padding:14px 16px}
+.stc-type-section{margin-top:18px}
+.stc-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}
+.stc-table thead th{background:var(--primary);color:#fff;padding:7px 8px;text-align:left;font-weight:500;white-space:nowrap}
+.stc-table tbody td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+.stc-table tbody tr:hover{background:#f8fafc}
+.stc-sa-cell{font-weight:700;color:var(--primary);white-space:nowrap}
+.stc-polys-cell{font-size:11px;color:var(--text2);max-width:160px}
+.stc-swatch{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:middle}
+.stc-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.stc-chart-half{height:320px}
+.stc-chart-full{height:380px;margin-top:12px}
+
 /* === Groups === */
 .groupCard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-top:8px}
 .listbox{width:100%;height:140px;border:1px solid var(--border);border-radius:8px;margin:6px 0}
@@ -198,6 +225,7 @@ main{display:grid;grid-template-columns:1fr 460px;min-height:0;overflow:hidden}
   .float{width:220px;padding:10px}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .chart-info-dialog{margin:3vh 10px 0;max-height:90vh}
+  .stc-charts-grid{grid-template-columns:1fr}
 }
 
 #app{visibility:hidden}
@@ -392,9 +420,8 @@ main{display:grid;grid-template-columns:1fr 460px;min-height:0;overflow:hidden}
     </div>
     <div id="avenueTable" style="margin-top:10px"></div>
   </div>
-</div>
 
-  <div class="tab" id="spatypecmp">
+    <div class="tab" id="spatypecmp">
     <div class="stc-header">
       <h4 id="stcTitle">השוואת Super-areas</h4>
       <div class="stc-mode-btns">
@@ -32429,6 +32456,165 @@ function updateGroupsChart() {
   ], Object.assign(pltLay(t('trees_per_polygon')), { barmode: 'stack' }), pltCfg);
 }
 
+/* ---------- space comparison ---------- */
+const STC_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#f59e0b', '#8b5cf6', '#0891b2', '#db2777', '#65a30d'];
+let stcViewMode = 'byspace';
+
+function escHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getAllSpaceTypes() {
+  return [...new Set((DATA?.polygons || []).map(p => p.space_type).filter(Boolean))].sort();
+}
+
+function getSpaceColorMap() {
+  return Object.fromEntries((DATA?.superAreas || []).map((sa, i) => [sa.code, STC_COLORS[i % STC_COLORS.length]]));
+}
+
+function getTypeColorMap() {
+  return Object.fromEntries(getAllSpaceTypes().map((type, i) => [type, STC_COLORS[i % STC_COLORS.length]]));
+}
+
+function computeSpaceTypeStats(saCode, spaceType) {
+  const sa = DATA.superAreas.find(item => item.code === saCode);
+  if (!sa) return null;
+  const polygons = sa.polygons.map(code => DATA.polygons.find(p => p.polygon === code))
+    .filter(p => p && (!spaceType || p.space_type === spaceType));
+  if (!polygons.length) return null;
+  const girths = [], heights = [];
+  let treeCount = 0, avenueTrees = 0, totalArea = 0;
+  polygons.forEach(polygon => {
+    const stats = computePolyStats(polygon.polygon);
+    const points = DATA.points.filter(point => point.polygon === polygon.polygon);
+    treeCount += points.length;
+    avenueTrees += stats.avenueTrees || 0;
+    totalArea += stats.area || 0;
+    points.forEach(point => {
+      if (point.girth > 0 && !isNaN(point.girth)) girths.push(point.girth);
+      const height = normalizeHeight(point.height);
+      if (height > 0 && !isNaN(height)) heights.push(height);
+    });
+  });
+  return {
+    saCode, spaceType, polyCodes: polygons.map(p => p.polygon), polyCount: polygons.length,
+    treeCount, avenueTrees, totalTrees: treeCount + avenueTrees, totalArea,
+    avgGirth: mean(girths), medianGirth: median(girths), stdGirth: stddev(girths),
+    minGirth: arrMin(girths), maxGirth: arrMax(girths), avgHeight: mean(heights),
+    medianHeight: median(heights), stdHeight: stddev(heights),
+    density: totalArea ? (treeCount + avenueTrees) / totalArea : 0, girths, heights,
+  };
+}
+
+function computeSpaceStats(saCode) {
+  return getAllSpaceTypes().map(spaceType => computeSpaceTypeStats(saCode, spaceType)).filter(Boolean);
+}
+
+function populateSpaceTypeFilter() {
+  const select = document.getElementById('stcTypeFilter');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = `<option value="">All space types</option>` + getAllSpaceTypes()
+    .map(type => `<option value="${escHtml(type)}"${type === current ? ' selected' : ''}>${escHtml(type)}</option>`).join('');
+}
+
+function populateSpaceFilter() {
+  const list = document.getElementById('stcSpaceCheckList');
+  if (!list || list.innerHTML) return;
+  list.innerHTML = DATA.superAreas.map(sa =>
+    `<label class="stc-multisel-item"><input type="checkbox" class="stc-space-chk" value="${escHtml(sa.code)}" checked onchange="onSpaceCheckChange()"> ${escHtml(sa.code)}</label>`
+  ).join('');
+  syncSpaceAllCheck();
+  updateSpaceMultiBtn();
+}
+
+function getSelectedSpaces() {
+  const checks = [...document.querySelectorAll('.stc-space-chk')];
+  const selected = checks.filter(check => check.checked).map(check => check.value);
+  return selected.length === checks.length ? [] : selected;
+}
+
+function setSTCMode(mode) {
+  stcViewMode = mode;
+  document.getElementById('stcModeByType')?.classList.toggle('active', mode === 'bytype');
+  document.getElementById('stcModeBySpace')?.classList.toggle('active', mode === 'byspace');
+  document.getElementById('stcTypeFilter').style.display = mode === 'bytype' ? '' : 'none';
+  document.getElementById('stcSpaceMultiWrap').style.display = mode === 'byspace' ? '' : 'none';
+  if (mode === 'byspace') populateSpaceFilter();
+  renderSpaceTypeCompare();
+}
+
+function toggleSpaceMultiSel() {
+  const panel = document.getElementById('stcSpaceMultiPanel');
+  if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function syncSpaceAllCheck() {
+  const all = document.getElementById('stcSpaceCheckAll');
+  const checks = [...document.querySelectorAll('.stc-space-chk')];
+  if (!all) return;
+  const selected = checks.filter(check => check.checked).length;
+  all.checked = selected === checks.length;
+  all.indeterminate = selected > 0 && selected < checks.length;
+}
+
+function updateSpaceMultiBtn() {
+  const button = document.getElementById('stcSpaceMultiBtn');
+  const checks = [...document.querySelectorAll('.stc-space-chk')];
+  if (!button) return;
+  const selected = checks.filter(check => check.checked).length;
+  button.textContent = `${selected === checks.length ? 'All spaces' : selected === 0 ? 'None selected' : `${selected} spaces`} ▾`;
+}
+
+function toggleAllSpaces(checked) {
+  document.querySelectorAll('.stc-space-chk').forEach(check => { check.checked = checked; });
+  syncSpaceAllCheck();
+  updateSpaceMultiBtn();
+  renderSpaceTypeCompare();
+}
+
+function onSpaceCheckChange() {
+  syncSpaceAllCheck();
+  updateSpaceMultiBtn();
+  renderSpaceTypeCompare();
+}
+
+function buildSTCTable(rows, firstHeader) {
+  const headers = [firstHeader, 'Polygons', 'Mapped Trees', 'Avenue Trees', 'Total Trees', 'Avg Girth', 'Median Girth', 'Std Girth', 'Min-Max', 'Avg Height', 'Std Height', 'Area (acres)', 'Density'];
+  return `<div style="overflow-x:auto"><table class="stc-table"><thead><tr>${headers.map(header => `<th>${header}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>
+    <td class="stc-sa-cell"><span class="stc-swatch" style="background:${row.color}"></span>${escHtml(row.label)}</td><td class="stc-polys-cell">${row.polyCodes.map(escHtml).join(', ')} <em>(${row.polyCount})</em></td>
+    <td>${row.treeCount}</td><td>${row.avenueTrees}</td><td><strong>${row.totalTrees}</strong></td><td>${fmt(row.avgGirth)}</td><td>${fmt(row.medianGirth)}</td><td>${fmt(row.stdGirth)}</td><td>${fmt(row.minGirth)}-${fmt(row.maxGirth)}</td><td>${fmt(row.avgHeight)}</td><td>${fmt(row.stdHeight)}</td><td>${fmt(row.totalArea)}</td><td>${fmt(row.density, 3)}</td>
+  </tr>`).join('')}</tbody></table></div>`;
+}
+
+function updateSTCCharts(rows, title) {
+  const labels = rows.map(row => row.label);
+  const series = [
+    ['chartSTCTrees', 'Total Trees', 'totalTrees'], ['chartSTCGirth', 'Avg Girth', 'avgGirth'],
+    ['chartSTCHeight', 'Avg Height', 'avgHeight'], ['chartSTCDensity', 'Density', 'density'], ['chartSTCArea', 'Area (acres)', 'totalArea'],
+  ];
+  series.forEach(([id, name, key]) => Plotly.newPlot(id, [{ x: labels, y: rows.map(row => row[key] || 0), type: 'bar', name }], pltLay(`${name} by ${title}`), pltCfg));
+  Plotly.newPlot('chartSTCBox', rows.map(row => ({ type: 'box', name: row.label, y: row.girths, marker: { color: row.color } })), pltLay(`Girth Distribution by ${title}`), pltCfg);
+  Plotly.newPlot('chartSTCHeatmap', [{ type: 'heatmap', z: [rows.map(row => row.totalTrees)], x: labels, y: ['Total Trees'], colorscale: 'YlGn' }], pltLay('Tree Comparison Heatmap'), pltCfg);
+  Plotly.newPlot('chartSTCScatter', [{ type: 'scatter', mode: 'markers+text', x: rows.map(row => row.totalArea), y: rows.map(row => row.totalTrees), text: labels, textposition: 'top center', marker: { color: rows.map(row => row.color), size: 10 } }], pltLay('Area vs Trees'), pltCfg);
+}
+
+function renderSpaceTypeCompare() {
+  if (!DATA || !document.getElementById('stcTableArea')) return;
+  populateSpaceTypeFilter();
+  const selectedSpaces = getSelectedSpaces();
+  const spaceCodes = selectedSpaces.length ? selectedSpaces : DATA.superAreas.map(sa => sa.code);
+  const typeFilter = document.getElementById('stcTypeFilter').value;
+  let rows;
+  if (stcViewMode === 'bytype') {
+    rows = DATA.superAreas.flatMap(sa => typeFilter ? [computeSpaceTypeStats(sa.code, typeFilter)] : computeSpaceStats(sa.code)).filter(Boolean).map(row => ({ ...row, label: typeFilter ? row.saCode : `${row.saCode} - ${row.spaceType}`, color: getSpaceColorMap()[row.saCode] }));
+  } else {
+    rows = spaceCodes.flatMap(code => computeSpaceStats(code)).map(row => ({ ...row, label: `${row.saCode} - ${row.spaceType}`, color: getTypeColorMap()[row.spaceType] }));
+  }
+  document.getElementById('stcTableArea').innerHTML = rows.length ? buildSTCTable(rows, stcViewMode === 'bytype' ? 'Space' : 'Space Type') : '<div class="small">No data</div>';
+  updateSTCCharts(rows, stcViewMode === 'bytype' ? 'Space' : 'Space Type');
+}
+
 /* ---------- avenues ---------- */
 function renderAvenues() {
   const def = parseFloat(document.getElementById('defaultSpacing').value) || 8;
@@ -32793,6 +32979,12 @@ function init() {
   initCompareUI();
   configureUpdateUI();
   initChartHeaders();
+  populateSpaceTypeFilter();
+  document.getElementById('stcTypeFilter').addEventListener('change', renderSpaceTypeCompare);
+  document.addEventListener('click', event => {
+    const wrap = document.getElementById('stcSpaceMultiWrap');
+    if (wrap && !wrap.contains(event.target)) document.getElementById('stcSpaceMultiPanel').style.display = 'none';
+  });
   retranslateUI();
   const appRoot = document.getElementById('app');
   if (appRoot) appRoot.style.visibility = 'visible';
@@ -32821,7 +33013,10 @@ function init() {
       if (tabId === 'advanced') updateAdvancedCharts();
       if (tabId === 'analytics') updateCharts();
       if (tabId === 'superareas') updateSACharts();
+      if (tabId === 'spatypecmp') renderSpaceTypeCompare();
     }, 60);
+    const mainElement = document.querySelector('main');
+    if (mainElement) mainElement.classList.toggle('fullwidth-mode', tabId === 'spatypecmp');
   });
 
   // Map controls
